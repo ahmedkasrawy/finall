@@ -1,7 +1,9 @@
 // CarSearchPage.dart
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'api.dart'; // Make sure to import your CarSearchService
+import 'api/api.dart'; // Make sure to import your CarSearchService
 
 class CarSearchPage extends StatefulWidget {
   @override
@@ -9,58 +11,60 @@ class CarSearchPage extends StatefulWidget {
 }
 
 class _CarSearchPageState extends State<CarSearchPage> {
-  final CarSearchService _carSearchService = CarSearchService();
-
-  late final TextEditingController _makeController;
-  List<Map<String, dynamic>> _cars = [];
+  final CarSearchService _CarSearchService = CarSearchService();
+  List<Map<String, dynamic>> _vehicles = [];
+  final TextEditingController _makeController = TextEditingController();
+  final TextEditingController _modelController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
-  @override
-  void initState() {
-    super.initState();
-    _makeController = TextEditingController();
-  }
+  Timer? _debounce; // Timer for debouncing
 
   @override
   void dispose() {
     _makeController.dispose();
+    _modelController.dispose();
+    _debounce?.cancel(); // Cancel any active debounce timers
     super.dispose();
   }
 
-  /// Fetch cars based on the make entered
-  Future<void> _searchCars() async {
-    FocusScope.of(context).unfocus();  // Dismiss the keyboard on search
+  /// Debounce the search
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) {
+      _debounce?.cancel();
+    }
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (query.isNotEmpty) {
+        _searchVehicles();
+      }
+    });
+  }
 
+  /// Fetch vehicles based on make and model
+  Future<void> _searchVehicles() async {
     final make = _makeController.text.trim();
-    if (make.isEmpty) {
+    final model = _modelController.text.trim();
+
+    if (make.isEmpty || model.isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter a car make.';
+        _errorMessage = 'Please enter both make and model.';
       });
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
+      final vehicles = await _CarSearchService.fetchVehiclesByMakeAndModel(make, model);
       setState(() {
-        _isLoading = true;
-        _errorMessage = null;
+        _vehicles = vehicles;
       });
-
-      final cars = await _carSearchService.fetchCarsByMake(make);
-
-      // Check if no cars are returned and handle that case
-      if (cars.isEmpty) {
-        setState(() {
-          _errorMessage = 'No cars found for this make.';
-        });
-      } else {
-        setState(() {
-          _cars = cars;
-        });
-      }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error fetching cars: $e';
+        _errorMessage = 'Failed to fetch vehicles. Error: $e';
       });
     } finally {
       setState(() {
@@ -72,54 +76,77 @@ class _CarSearchPageState extends State<CarSearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Car Search'),
-      ),
+      appBar: AppBar(title: const Text('Marketcheck Car Search')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Input field for entering the car make
             TextField(
               controller: _makeController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Enter car make (e.g., Toyota)',
                 border: OutlineInputBorder(),
-                errorText: _errorMessage, // Show error if any
               ),
+              onChanged: _onSearchChanged, // Debounced search
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _modelController,
+              decoration: const InputDecoration(
+                labelText: 'Enter car model (e.g., Camry)',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: _onSearchChanged, // Debounced search
+            ),
+            const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _searchCars,
-              child: Text('Search'),
+              onPressed: _searchVehicles,
+              child: const Text('Search'),
             ),
-            SizedBox(height: 16),
-            // Show loading indicator if fetching cars
+            const SizedBox(height: 16),
             if (_isLoading)
-              Center(child: CircularProgressIndicator())
-            // Show error message if any
+              const CircularProgressIndicator()
             else if (_errorMessage != null)
-              Center(
-                child: Text(
-                  _errorMessage!,
-                  style: TextStyle(color: Colors.red),
-                ),
+              Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.red),
               )
-            // Display list of cars if available
-            else if (_cars.isEmpty)
-                Center(child: Text('No cars found.'))
+            else if (_vehicles.isEmpty)
+                const Center(child: Text('No vehicles found.'))
               else
                 Expanded(
                   child: ListView.builder(
-                    itemCount: _cars.length,
+                    itemCount: _vehicles.length,
                     itemBuilder: (context, index) {
-                      final car = _cars[index];
+                      final vehicle = _vehicles[index];
                       return Card(
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        child: ListTile(
-                          title: Text('${car['make']} ${car['model']}'),
-                          subtitle: Text('Year: ${car['year']}'),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Image.network(
+                              vehicle['image'],
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 100,
+                                  height: 100,
+                                  color: Colors.grey,
+                                  child: const Center(
+                                    child: Icon(Icons.broken_image, color: Colors.white),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ListTile(
+                                title: Text('${vehicle['make']} ${vehicle['model']}'),
+                                subtitle: Text('Year: ${vehicle['year']}'),
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     },

@@ -2,14 +2,15 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Add jcenter if needed, but it is deprecated. Use alternatives if possible.
+        // jcenter()
     }
 }
 
 rootProject.buildDir = "../build"
+
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
     project.evaluationDependsOn(":app")
 }
 

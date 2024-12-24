@@ -5,26 +5,30 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'daynnite.dart';
-import 'homescreen.dart';
-import 'login_screen.dart';
+import 'view/homescreen.dart';
+import 'view/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await CacheHelper.cacheInitialization(); // Initialize CacheHelper
 
-  SharedPreferences prefs = await SharedPreferences.getInstance();
+  // Initialize CacheHelper
+  await CacheHelper.cacheInitialization();
 
   // Initialize Firebase only if not already initialized
   if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyCcXlbrnBYbv17NC353NR56L5XSQ6K70uo",
-        appId: "1:148122814027:android:56fe216bc5c2ea38412fce",
-        messagingSenderId: "148122814027",
-        projectId: "final-d40dc",
-        storageBucket: "final-d40dc.firebasestorage.app",
-      ),
-    );
+    try {
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyCcXlbrnBYbv17NC353NR56L5XSQ6K70uo",
+          appId: "1:148122814027:android:56fe216bc5c2ea38412fce",
+          messagingSenderId: "148122814027",
+          projectId: "final-d40dc",
+          storageBucket: "final-d40dc.firebasestorage.app",
+        ),
+      );
+    } catch (e) {
+      print('Firebase initialization error: $e');
+    }
   }
 
   runApp(MyApp());
@@ -34,6 +38,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false, // Disable the "Debug" banner
       title: 'Stay Logged In Example',
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -52,22 +57,36 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Navigate after a fixed duration
-    Future.delayed(const Duration(seconds: 3), () {
-      // Check authentication state and navigate accordingly
+    _checkAuthState();
+  }
+
+  Future<void> _checkAuthState() async {
+    try {
+      // Delay before navigation
+      await Future.delayed(const Duration(seconds: 3));
+
       final user = FirebaseAuth.instance.currentUser;
+
       if (user != null) {
+        // If a user is signed in, navigate to HomeScreen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => HomeScreen()),
         );
       } else {
+        // Navigate to LoginScreen if no user is signed in
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => LoginScreen()),
         );
       }
-    });
+    } catch (e) {
+      print('Error checking auth state: $e');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+    }
   }
 
   @override
@@ -100,5 +119,37 @@ class AuthStateCheck extends StatelessWidget {
     } else {
       return LoginScreen(); // Navigate to LoginScreen if not authenticated
     }
+  }
+}
+
+class CacheHelper {
+  static SharedPreferences? _preferences;
+
+  /// Initialize SharedPreferences
+  static Future<void> cacheInitialization() async {
+    _preferences = await SharedPreferences.getInstance();
+  }
+
+  /// Save data to SharedPreferences
+  static Future<void> saveData({required String key, required dynamic value}) async {
+    if (value is String) {
+      await _preferences?.setString(key, value);
+    } else if (value is bool) {
+      await _preferences?.setBool(key, value);
+    } else if (value is int) {
+      await _preferences?.setInt(key, value);
+    } else if (value is double) {
+      await _preferences?.setDouble(key, value);
+    }
+  }
+
+  /// Retrieve data from SharedPreferences
+  static dynamic getData({required String key}) {
+    return _preferences?.get(key);
+  }
+
+  /// Remove a specific key from SharedPreferences
+  static Future<void> removeData({required String key}) async {
+    await _preferences?.remove(key);
   }
 }

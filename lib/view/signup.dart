@@ -1,9 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-import 'homescreen.dart';
+import '../emailverify.dart';
 import 'login_screen.dart';
-import 'main.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -13,22 +14,32 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   String? successMessage;
 
   Future<void> signup() async {
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      // Navigate to HomeScreen on successful signup
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
-      );
+      // Send email verification
+      User? user = userCredential.user;
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+
+        // Navigate to Email Verification Screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const EmailVerificationScreen(),
+          ),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String errorMessage = "Signup failed.";
       if (e.code == 'weak-password') {
@@ -46,13 +57,64 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
+  Future<void> googleSignUp() async {
+    try {
+      // Trigger the Google authentication flow
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        // User canceled the sign-in
+        return;
+      }
+
+      // Obtain the Google authentication details
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+
+      // Create a credential for Firebase
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in with the Google credential
+      UserCredential userCredential =
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      // Check if it's a new user
+      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+        // Save additional user information if needed
+        final user = userCredential.user;
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user!.uid)
+            .set({'username': googleUser.displayName ?? 'No Username'});
+      }
+
+      // Navigate to home screen or a different screen
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Google sign-up successful!")),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()), // Change to home screen if required
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Google sign-up failed: $e")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
             Navigator.pushReplacement(
               context,
@@ -69,6 +131,15 @@ class _SignupScreenState extends State<SignupScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset('assets/kas.png', height: 200, width: 200),
+              const SizedBox(height: 16),
+              TextField(
+                controller: usernameController,
+                decoration: const InputDecoration(
+                  hintText: 'Enter username',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.name,
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: emailController,
@@ -95,7 +166,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               const SizedBox(height: 16),
               SizedBox(
-                width: 220, // Match the width of the Google button
+                width: 220,
                 child: ElevatedButton(
                   onPressed: signup,
                   style: ElevatedButton.styleFrom(
@@ -114,11 +185,9 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 16),
               SizedBox(
-                width: 220, // Match the width of the "Sign up" button
+                width: 220,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Add Google Sign-Up logic here
-                  },
+                  onPressed: googleSignUp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,

@@ -1,9 +1,9 @@
-import 'package:finall/signup.dart';
+import 'package:finall/view/signup.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'homescreen.dart';
-import 'main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,6 +39,46 @@ class _LoginScreenState extends State<LoginScreen> {
           errorMessage = "An error occurred: ${e.message}";
         }
       });
+    }
+  }
+
+  Future<void> googleLogin() async {
+    try {
+      // Trigger the Google authentication flow
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        // User canceled the sign-in
+        return;
+      }
+
+      // Obtain the Google authentication details
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+
+      // Create a credential for Firebase
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in with the Google credential
+      UserCredential userCredential =
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      // Navigate to home screen or a different screen
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Google login successful!")),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomeScreen()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Google login failed: $e")),
+      );
     }
   }
 
@@ -79,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               const SizedBox(height: 16),
               SizedBox(
-                width: 220, // Match the width of the Google button
+                width: 220,
                 child: ElevatedButton(
                   onPressed: login,
                   style: ElevatedButton.styleFrom(
@@ -98,11 +138,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
               SizedBox(
-                width: 220, // Match the width of the "Login" button
+                width: 220,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Add Google Login logic here
-                  },
+                  onPressed: googleLogin, // Google login method
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,

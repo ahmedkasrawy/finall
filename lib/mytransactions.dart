@@ -1,6 +1,7 @@
-import 'package:finall/profilescreen.dart';
-import 'package:finall/search.dart';
 import 'package:flutter/material.dart';
+import 'profilescreen.dart';
+import 'search.dart';
+import 'view/homescreen.dart';
 
 class MyTransactions extends StatefulWidget {
   @override
@@ -37,8 +38,11 @@ class _MyTransactionsState extends State<MyTransactions> {
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        title: const Text('My Transactions'),
-        backgroundColor: Colors.cyan.shade700,
+        title: const Text(
+          'My Transactions',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.blueAccent,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -58,30 +62,42 @@ class _MyTransactionsState extends State<MyTransactions> {
             const SizedBox(height: 16.0),
             Expanded(
               child: _filteredTransactions.isEmpty
-                  ? Center(child: Text('No transactions found'))
+                  ? Center(
+                child: Text(
+                  'No transactions found',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              )
                   : ListView.builder(
                 itemCount: _filteredTransactions.length,
                 itemBuilder: (context, index) {
                   final transaction = _filteredTransactions[index];
-                  return ListTile(
-                    title: Text(transaction['name']),
-                    subtitle: Text(
-                      '${transaction['date'].toString().split(' ')[0]}',
-                    ),
-                    trailing: Text(
-                      transaction['amount'] > 0
-                          ? '+\$${transaction['amount'].toStringAsFixed(2)}'
-                          : '-\$${transaction['amount'].abs().toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: transaction['amount'] > 0
-                            ? Colors.green
-                            : Colors.red,
-                        fontWeight: FontWeight.bold,
+                  return Card(
+                    margin: EdgeInsets.symmetric(vertical: 8.0),
+                    child: ListTile(
+                      title: Text(
+                        transaction['name'],
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
+                      subtitle: Text(
+                        '${transaction['date'].toString().split(' ')[0]}',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                      trailing: Text(
+                        transaction['amount'] > 0
+                            ? '+\$${transaction['amount'].toStringAsFixed(2)}'
+                            : '-\$${transaction['amount'].abs().toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: transaction['amount'] > 0
+                              ? Colors.green
+                              : Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onTap: () {
+                        print('Transaction tapped: ${transaction['name']}');
+                      },
                     ),
-                    onTap: () {
-                      print('Transaction tapped: ${transaction['name']}');
-                    },
                   );
                 },
               ),
@@ -89,60 +105,59 @@ class _MyTransactionsState extends State<MyTransactions> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomAppBar(
-        color: Colors.blueAccent,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            IconButton(
-              onPressed: () {
-                Navigator.pop(context); // Navigate back to the home screen
-              },
-              icon: Image.asset(
-                'assets/home.png', // Replace with your asset path
-                width: 24,
-                height: 24,
-              ),
-              iconSize: 40,
-            ),
-            IconButton(
-              onPressed: () {
-                onTap: () {
-                  // Navigate to the SearchScreen when the TextField is tapped
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => SearchScreen()),
-                  );
-                } ;
-                },
-              icon: Image.asset(
-                'assets/magnifying-glass.png', // Replace with your asset path
-                width: 24,
-                height: 24,
-              ),
-              iconSize: 40,
-            ),
-            IconButton(
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProfileScreen(
-                      toggleTheme: () {},
-                      isDarkMode: true,
-                    ),
-                  ),
-                );
-              },
-              icon: Image.asset(
-                'assets/user.png', // Replace with your asset path
-                width: 24,
-                height: 24,
-              ),
-              iconSize: 40,
-            ),
-          ],
-        ),
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        currentIndex: 1, // Active index for Transactions
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => HomeScreen()),
+              );
+              break;
+            case 1:
+            // Already on Transactions screen
+              break;
+            case 2:
+            // Navigate to Favorites
+              break;
+            case 3:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SearchScreen()),
+              );
+              break;
+            case 4:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => ProfileScreen()),
+              );
+              break;
+          }
+        },
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite_border),
+            label: 'Favorites',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: 'Search',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_circle),
+            label: 'Profile',
+          ),
+        ],
       ),
     );
   }
