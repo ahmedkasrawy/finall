@@ -1,16 +1,49 @@
-import 'package:finall/search.dart';
 import 'package:finall/view/homescreen.dart';
 import 'package:finall/view/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'settings.dart';
-import 'mytransactions.dart';
+
 import 'wallet.dart';
+import 'mytransactions.dart';
+import 'settings.dart';
 
 class ProfileScreen extends StatelessWidget {
+  Future<void> _deleteAccount(BuildContext context) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No user is logged in.')),
+        );
+        return;
+      }
+
+      // Delete user data from Firestore
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
+
+      // Delete user from FirebaseAuth
+      await user.delete();
+
+      // Navigate to the login screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Account deleted successfully.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting account: ${e.toString()}')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
@@ -37,16 +70,17 @@ class ProfileScreen extends StatelessWidget {
               CircleAvatar(
                 radius: 50.0,
                 backgroundImage: NetworkImage(
-                  'https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg',
+                  user?.photoURL ??
+                      'https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg',
                 ),
               ),
               SizedBox(height: 24.0),
               Text(
-                "John Doe",
+                user?.displayName ?? "No Name",
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               Text(
-                "john.doe@example.com",
+                user?.email ?? "No Email",
                 style: TextStyle(fontSize: 16, color: Colors.grey[700]),
               ),
               SizedBox(height: 24.0),
@@ -59,14 +93,6 @@ class ProfileScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(builder: (context) => PaymentPage()),
                   );
-                },
-              ),
-              _buildProfileOption(
-                context,
-                label: 'My Bookings',
-                icon: Icons.calendar_month,
-                onTap: () {
-                  // Add My Bookings functionality here
                 },
               ),
               _buildProfileOption(
@@ -103,6 +129,18 @@ class ProfileScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.white),
                 ),
               ),
+              SizedBox(height: 16.0),
+              ElevatedButton(
+                onPressed: () => _deleteAccount(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  minimumSize: Size(200, 50),
+                ),
+                child: Text(
+                  'Delete Account',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
             ],
           ),
         ),
@@ -113,7 +151,6 @@ class ProfileScreen extends StatelessWidget {
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
         currentIndex: 3,
-        // Active index for Profile
         onTap: (index) {
           switch (index) {
             case 0:
@@ -123,13 +160,10 @@ class ProfileScreen extends StatelessWidget {
               );
               break;
             case 1:
-            // Navigate to favorites or another screen
+            // Navigate to Favorites
               break;
             case 2:
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => SearchScreen()),
-              );
+            // Navigate to Search
               break;
             case 3:
             // Already on the Profile screen
@@ -163,26 +197,27 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Logout'),
-          content: Text('Are you sure you want to log out?'),
-          actions: [
+            title: Text('Logout'),
+            content: Text('Are you sure you want to log out?'),
+            actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-              },
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                );
-              },
-              child: Text('Yes, I\'m sure'),
-            ),
-          ],
+            onPressed: () {
+          Navigator.of(context).pop(); // Close the dialog
+        },
+        child: Text('Cancel'),
+        ),
+        TextButton(
+        onPressed: () {
+        FirebaseAuth.instance.signOut();
+        Navigator.of(context).pop(); // Close the dialog
+        Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+        );
+        },
+        child: Text("Yes, i'm sure"),
+        ),
+        ],
         );
       },
     );

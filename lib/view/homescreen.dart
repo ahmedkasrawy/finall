@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../allcars.dart'; // Ensure this is implemented correctly
-import '../profilescreen.dart'; // Ensure this exists
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../ProfileScreen.dart';
 import '../top_cars_list_view.dart';
 import '../carDetails.dart';
-import '../api/api.dart'; // Adjust path if necessary
+import '../api/api.dart';
+import 'AddCarScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -15,15 +16,17 @@ class _HomeScreenState extends State<HomeScreen> {
   late TextEditingController _searchController;
 
   List<Map<String, dynamic>> _randomCars = [];
+  List<Map<String, dynamic>> _firestoreCars = [];
   bool _isLoading = false;
   String? _errorMessage;
-  int _selectedIndex = 0; // Track selected item in the bottom app bar
+  int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
     _fetchRandomCars();
+    _fetchFirestoreCars(); // Fetch Firestore cars
   }
 
   @override
@@ -32,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  /// Fetch cars from the API
   Future<void> _fetchRandomCars() async {
     try {
       setState(() {
@@ -39,7 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _errorMessage = null;
       });
 
-      // Fetch cars for multiple manufacturers
       final manufacturers = ['Toyota', 'Honda', 'Ford', 'BMW', 'Tesla'];
       List<Map<String, dynamic>> allCars = [];
 
@@ -48,7 +51,6 @@ class _HomeScreenState extends State<HomeScreen> {
         allCars.addAll(cars);
       }
 
-      // Filter cars with valid image URLs
       final filteredCars = allCars.where((car) {
         final imageUrl = car['image'];
         return imageUrl != null && imageUrl.isNotEmpty;
@@ -69,87 +71,32 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _searchCars() async {
-    final query = _searchController.text.trim();
-
-    if (query.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please enter a car make or model.';
-        _randomCars = [];
-      });
-      return;
-    }
-
+  /// Fetch cars from Firestore
+  Future<void> _fetchFirestoreCars() async {
     try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-
-      // Split the query into potential make and model parts
-      final queryParts = query.split(' ');
-      final make = queryParts.isNotEmpty ? queryParts[0] : '';
-      final model = queryParts.length > 1 ? queryParts[1] : '';
-
-      // Fetch cars for the entered make and/or model
-      final cars = await _carSearchService.fetchVehiclesByMakeAndModel(make, model);
-
-      if (cars.isEmpty) {
-        setState(() {
-          _errorMessage = 'No cars found for "$query".';
-          _randomCars = [];
-        });
-        return;
-      }
-
-      // Filter cars with valid image URLs
-      final filteredCars = cars.where((car) {
-        final imageUrl = car['image'];
-        return imageUrl != null && imageUrl.isNotEmpty;
+      final snapshot = await FirebaseFirestore.instance.collection('cars').get();
+      final cars = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'make': data['make'],
+          'model': data['model'],
+          'year': data['year'],
+          'price': data['price'],
+          'image': data['image'] ?? 'https://via.placeholder.com/150',
+        };
       }).toList();
 
       setState(() {
-        _randomCars = filteredCars;
+        _firestoreCars = cars;
       });
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Error fetching cars: $e';
-        _randomCars = [];
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      print('Error fetching cars from Firestore: $e');
     }
   }
 
-
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-      // Home - Already on HomeScreen
-        break;
-      case 1:
-      // Navigate to Favorites (replace with actual implementation)
-        break;
-      case 2:
-      // Search Functionality
-        _searchCars();
-        break;
-      case 3:
-      // Navigate to Profile Screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ProfileScreen()),
-        );
-        break;
-    }
-  }
+  /// Combine API cars and Firestore cars
+  List<Map<String, dynamic>> get _allCars => [..._randomCars, ..._firestoreCars];
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: TextField(
                       controller: _searchController,
-                      onSubmitted: (_) => _searchCars(),
+                      onSubmitted: (_) => _fetchRandomCars(),
                       decoration: InputDecoration(
                         hintText: 'Search for cars...',
                         prefixIcon: const Icon(Icons.search),
@@ -202,15 +149,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: const TextStyle(color: Colors.red),
                 ),
               )
-                  : _randomCars.isEmpty
+                  : _allCars.isEmpty
                   ? const Center(child: Text('No cars found.'))
                   : TopCarsListView(
-                topCars: _randomCars,
+                topCars: _allCars,
                 onCarTap: (car) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => CarDetailsScreen(car: car),
+                      builder: (context) =>
+                          CarDetailsScreen(car: car),
                     ),
                   );
                 },
@@ -219,42 +167,46 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          BottomAppBar(
-            shape: CircularNotchedRectangle(),
-            notchMargin: 6.0,
-            child: BottomNavigationBar(
-              currentIndex: _selectedIndex,
-              onTap: _onItemTapped,
-              type: BottomNavigationBarType.fixed,
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.home),
-                  label: 'Home',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.favorite),
-                  label: 'Favorites',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.search),
-                  label: 'Search',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.account_circle),
-                  label: 'Profile',
-                ),
-              ],
-              selectedItemColor: Colors.blue,
-              unselectedItemColor: Colors.grey,
-              backgroundColor: Colors.white,
+      bottomNavigationBar: BottomAppBar(
+        shape: CircularNotchedRectangle(),
+        notchMargin: 6.0,
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: (index) => setState(() => _selectedIndex = index),
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home),
+              label: 'Home',
             ),
-          ),
-          const SizedBox(height: 16), // Padding below the BottomAppBar
-        ],
+            BottomNavigationBarItem(
+              icon: Icon(Icons.favorite),
+              label: 'Favorites',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.search),
+              label: 'Search',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.account_circle),
+              label: 'Profile',
+            ),
+          ],
+          selectedItemColor: Colors.blue,
+          unselectedItemColor: Colors.grey,
+          backgroundColor: Colors.white,
+        ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddCarScreen()),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 }
