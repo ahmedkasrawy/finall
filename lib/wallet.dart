@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PaymentPage extends StatefulWidget {
   @override
@@ -14,6 +16,90 @@ class _PaymentPageState extends State<PaymentPage> {
   String? expiryMonth;
   String? expiryYear;
   bool showBack = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPaymentDetails(); // Load saved payment details when the screen initializes
+  }
+
+  /// Load payment details from Firestore
+  Future<void> _loadPaymentDetails() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'not-logged-in',
+          message: 'User is not logged in.',
+        );
+      }
+
+      final doc = await FirebaseFirestore.instance
+          .collection('payment_details')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data();
+        setState(() {
+          cardNumber = data?['cardNumber'] ?? '';
+          cardHolder = data?['cardHolder'] ?? '';
+          cvv = data?['cvv'] ?? '';
+          expiryMonth = data?['expiryMonth'] ?? '';
+          expiryYear = data?['expiryYear'] ?? '';
+        });
+      }
+    } catch (e) {
+      print('Error loading payment details: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading payment details: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Save payment details to Firestore
+  Future<void> _savePaymentDetails() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'not-logged-in',
+          message: 'User is not logged in.',
+        );
+      }
+
+      await FirebaseFirestore.instance
+          .collection('payment_details')
+          .doc(user.uid)
+          .set({
+        'cardNumber': cardNumber,
+        'cardHolder': cardHolder,
+        'cvv': cvv,
+        'expiryMonth': expiryMonth,
+        'expiryYear': expiryYear,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Payment details saved successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('Error saving payment details: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving payment details: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +195,8 @@ class _PaymentPageState extends State<PaymentPage> {
                           hint: 'YY',
                           value: expiryYear,
                           items: List.generate(10, (index) {
-                            final year = (DateTime.now().year + index).toString();
+                            final year =
+                            (DateTime.now().year + index).toString();
                             return DropdownMenuItem(
                               value: year,
                               child: Text(year),
@@ -163,12 +250,7 @@ class _PaymentPageState extends State<PaymentPage> {
                       ),
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Payment submitted successfully!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
+                          _savePaymentDetails(); // Save data to Firestore
                         }
                       },
                       child: Text(

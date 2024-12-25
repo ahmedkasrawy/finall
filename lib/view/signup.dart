@@ -27,18 +27,27 @@ class _SignupScreenState extends State<SignupScreen> {
         password: passwordController.text.trim(),
       );
 
-      // Send email verification
+      // Save user data to Firestore
       User? user = userCredential.user;
-      if (user != null && !user.emailVerified) {
-        await user.sendEmailVerification();
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'username': usernameController.text.trim(),
+          'email': emailController.text.trim(),
+          'userId': user.uid,
+        });
 
-        // Navigate to Email Verification Screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const EmailVerificationScreen(),
-          ),
-        );
+        // Send email verification
+        if (!user.emailVerified) {
+          await user.sendEmailVerification();
+
+          // Navigate to Email Verification Screen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const EmailVerificationScreen(),
+            ),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage = "Signup failed.";
@@ -56,6 +65,7 @@ class _SignupScreenState extends State<SignupScreen> {
       );
     }
   }
+
 
   Future<void> googleSignUp() async {
     try {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TopCarsListView extends StatefulWidget {
   final List<Map<String, dynamic>> topCars;
@@ -12,6 +14,41 @@ class TopCarsListView extends StatefulWidget {
 
 class _TopCarsListViewState extends State<TopCarsListView> {
   final Map<int, bool> _favorites = {}; // To track favorite state for each car
+  final currentUser = FirebaseAuth.instance.currentUser;
+
+  Future<void> _toggleFavorite(Map<String, dynamic> car, int index) async {
+    if (currentUser == null) return;
+
+    final favoritesRef = FirebaseFirestore.instance
+        .collection('favorites')
+        .doc(currentUser!.uid)
+        .collection('cars');
+
+    final carDoc = await favoritesRef.doc(car['id']).get();
+
+    if (carDoc.exists) {
+      // Remove from favorites
+      await favoritesRef.doc(car['id']).delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${car['name']} removed from favorites!')),
+      );
+    } else {
+      // Add to favorites
+      await favoritesRef.doc(car['id']).set({
+        'name': car['name'] ?? '${car['make']} ${car['model']}',
+        'image': car['image'],
+        'price': car['price'] ?? 'N/A',
+        'modelYear': car['year'] ?? 'N/A',
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${car['name']} added to favorites!')),
+      );
+    }
+
+    setState(() {
+      _favorites[index] = !(carDoc.exists); // Toggle the favorite state
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,11 +143,7 @@ class _TopCarsListViewState extends State<TopCarsListView> {
                   ),
                   // Favorite Icon
                   IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _favorites[index] = !isFavorite; // Toggle favorite state
-                      });
-                    },
+                    onPressed: () => _toggleFavorite(car, index),
                     icon: Icon(
                       isFavorite ? Icons.favorite : Icons.favorite_border,
                       color: isFavorite ? Colors.red : Colors.grey,
