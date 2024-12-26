@@ -1,3 +1,4 @@
+import 'package:finall/view/FavoritesScreen.dart';
 import 'package:finall/view/homescreen.dart';
 import 'package:finall/view/login_screen.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +9,14 @@ import 'wallet.dart';
 import 'mytransactions.dart';
 import 'settings.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
+  @override
+  _ProfileScreenState createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  int _selectedIndex = 3; // Set to 3 because Profile is the fourth tab
+
   Future<void> _deleteAccount(BuildContext context) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -38,6 +46,37 @@ class ProfileScreen extends StatelessWidget {
         SnackBar(content: Text('Error deleting account: ${e.toString()}')),
       );
     }
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to log out?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                FirebaseAuth.instance.signOut();
+                Navigator.of(context).pop(); // Close the dialog
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              },
+              child: Text("Yes, I'm sure"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -146,37 +185,17 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
-        currentIndex: 3,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => HomeScreen()),
-              );
-              break;
-            case 1:
-            // Navigate to Favorites
-              break;
-            case 2:
-            // Navigate to Search
-              break;
-            case 3:
-            // Already on the Profile screen
-              break;
-          }
-        },
-        items: [
+        selectedItemColor: Colors.blue, // Selected item color
+        unselectedItemColor: Colors.grey, // Unselected item color
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_border),
+            icon: Icon(Icons.favorite),
             label: 'Favorites',
           ),
           BottomNavigationBarItem(
@@ -188,46 +207,32 @@ class ProfileScreen extends StatelessWidget {
             label: 'Profile',
           ),
         ],
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => HomeScreen()),
+            );
+          } else if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => FavoritesScreen()),
+            );
+          } else if (index == 2) {
+            // Placeholder for Search functionality
+          } else if (index == 3) {
+            // Stay on ProfileScreen
+          }
+        },
       ),
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-            title: Text('Logout'),
-            content: Text('Are you sure you want to log out?'),
-            actions: [
-            TextButton(
-            onPressed: () {
-          Navigator.of(context).pop(); // Close the dialog
-        },
-        child: Text('Cancel'),
-        ),
-        TextButton(
-        onPressed: () {
-        FirebaseAuth.instance.signOut();
-        Navigator.of(context).pop(); // Close the dialog
-        Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-        );
-        },
-        child: Text("Yes, i'm sure"),
-        ),
-        ],
-        );
-      },
-    );
-  }
-
-  Widget _buildProfileOption(BuildContext context, {
-    required String label,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildProfileOption(BuildContext context,
+      {required String label, required IconData icon, required VoidCallback onTap}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: ListTile(

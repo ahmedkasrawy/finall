@@ -46,6 +46,8 @@ dependencies:
   lottie: ^3.1.3
   flutter_gif: 0.0.4
   get : ^4.6.5
+  image: ^4.0.15
+  image_picker_web: ^4.0.0
   permission_handler:
   url_launcher: ^6.3.1
   latlong2: ^0.8.0
@@ -93,6 +95,8 @@ flutter:
      - assets/check.png
      - assets/heart.png
      - assets/kisooo.png
+     - assets/add.png
+     - assets/chat.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

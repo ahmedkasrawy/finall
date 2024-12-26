@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:finall/view/signup.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-
 import 'homescreen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,6 +14,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   String? errorMessage;
@@ -28,7 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
       User? user = userCredential.user;
       if (user != null) {
-        // Fetch user data from Firestore
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -38,14 +38,12 @@ class _LoginScreenState extends State<LoginScreen> {
           throw Exception("User data not found in Firestore.");
         }
 
-        Map<String, dynamic>? userData =
-        userDoc.data() as Map<String, dynamic>?;
+        Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
 
-        if (userData == null || userData['username'] == null) {
-          throw Exception("User data is incomplete in Firestore.");
+        if (userData == null || userData['username'] != usernameController.text.trim()) {
+          throw Exception("Username does not match.");
         }
 
-        // Navigate to the HomeScreen on successful login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => HomeScreen()),
@@ -68,32 +66,24 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-
   Future<void> googleLogin() async {
     try {
-      // Trigger the Google authentication flow
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
 
       if (googleUser == null) {
-        // User canceled the sign-in
-        return;
+        return; // User canceled the Google Sign-In
       }
 
-      // Obtain the Google authentication details
-      final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-      // Create a credential for Firebase
       final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in with the Google credential
       UserCredential userCredential =
       await FirebaseAuth.instance.signInWithCredential(credential);
 
-      // Navigate to home screen or a different screen
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Google login successful!")),
       );
@@ -120,6 +110,15 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset('assets/kas.png', height: 200, width: 200),
+              const SizedBox(height: 16),
+              TextField(
+                controller: usernameController,
+                decoration: const InputDecoration(
+                  hintText: 'Username',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.name,
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: emailController,
