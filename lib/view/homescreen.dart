@@ -9,7 +9,6 @@ import 'AddCarScreen.dart';
 import 'FavoritesScreen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-
 class HomeScreen extends StatefulWidget {
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -26,10 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   int _selectedIndex = 0;
-
-  // Price filter variables
-  double _minPrice = 0;
-  double _maxPrice = 10000;
 
   @override
   void initState() {
@@ -87,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'Ford',
         'BMW',
         'Tesla',
-        'Dodge',
+        'Dodge'
         'Chevrolet',
         'Audi',
         'Mercedes-Benz',
@@ -95,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'Nissan',
         'Hyundai',
         'Kia',
+
       ];
       List<Map<String, dynamic>> allCars = [];
 
@@ -132,23 +128,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ..._firestoreCars,
       ];
 
-  /// Filter cars based on search input and price range
+  /// Filter cars based on search input
   void _filterCars() {
     final query = _searchController.text.trim().toLowerCase();
     setState(() {
       if (query.isEmpty) {
-        _filteredCars = _combinedCars.where((car) {
-          final price = car['price'] ?? 0;
-          return price >= _minPrice && price <= _maxPrice;
-        }).toList();
+        _filteredCars = _combinedCars;
       } else {
         _filteredCars = _combinedCars.where((car) {
           final make = car['make']?.toLowerCase() ?? '';
           final model = car['model']?.toLowerCase() ?? '';
           final year = car['year']?.toString() ?? '';
-          final price = car['price'] ?? 0;
-          return (make.contains(query) || model.contains(query) || year.contains(query)) &&
-              (price >= _minPrice && price <= _maxPrice);
+          return make.contains(query) || model.contains(query) ||
+              year.contains(query);
         }).toList();
       }
     });
@@ -174,10 +166,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         break;
       case 2:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => UserSelectionScreen()),
-        );
         break; // Placeholder for search
       case 3:
         Navigator.push(
@@ -243,32 +231,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ),
-            // Price Range Filter
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                children: [
-                  Text('Price Range: \$${_minPrice.toInt()} - \$${_maxPrice.toInt()}'),
-                  RangeSlider(
-                    values: RangeValues(_minPrice, _maxPrice),
-                    min: 0,
-                    max: 10000,
-                    divisions: 100,
-                    labels: RangeLabels(
-                      _minPrice.toInt().toString(),
-                      _maxPrice.toInt().toString(),
-                    ),
-                    onChanged: (RangeValues values) {
-                      setState(() {
-                        _minPrice = values.start;
-                        _maxPrice = values.end;
-                      });
-                      _filterCars(); // Apply filter after slider change
-                    },
-                  ),
-                ],
-              ),
-            ),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -301,7 +263,9 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.blue,
+        // Selected item color
         unselectedItemColor: Colors.grey,
+        // Unselected item color
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -312,8 +276,8 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Favorites',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Chat',
+            icon: Icon(Icons.search),
+            label: 'Search',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_circle),

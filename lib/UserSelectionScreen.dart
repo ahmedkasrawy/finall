@@ -12,22 +12,12 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  // Corrected generateChatId function
-  String generateChatId(String userId1, String userId2) {
-    // Use string interpolation correctly:
-    return userId1.compareTo(userId2) < 0 ? '${userId1}_$userId2' : '${userId2}_$userId1';
-    //OR you can use this
-    //return userId1.compareTo(userId2) < 0 ? userId1 + '_' + userId2 : userId2 + '_' + userId1;
-
-  }
-
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       return Scaffold(
-        appBar: AppBar(title: Text("Select User to Chat")),
         body: Center(child: Text("Please log in to use the chat feature.")),
       );
     }
@@ -44,7 +34,7 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
               controller: _searchController,
               onChanged: (value) {
                 setState(() {
-                  _searchQuery = value.trim().toLowerCase();
+                  _searchQuery = value.trim().toLowerCase(); // Update the search query
                 });
               },
               decoration: InputDecoration(
@@ -60,50 +50,38 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('users').snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (!snapshot.hasData) {
                   return Center(child: CircularProgressIndicator());
-                }
-
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(child: Text("No users found."));
                 }
 
                 final users = snapshot.data!.docs;
 
+                // Filter users based on the search query
                 final filteredUsers = users.where((user) {
                   final userData = user.data() as Map<String, dynamic>?;
                   if (userData == null) return false;
 
-                  final username = userData['username']?.toLowerCase() ?? '';
-                  return username.contains(_searchQuery);
+                  final username = userData['username'] ?? '';
+                  return username.toLowerCase().contains(_searchQuery);
                 }).toList();
-
-                if (filteredUsers.isEmpty && _searchQuery.isNotEmpty) {
-                  return Center(child: Text("No users found matching your search."));
-                }
 
                 return ListView.builder(
                   itemCount: filteredUsers.length,
                   itemBuilder: (context, index) {
                     final user = filteredUsers[index];
-                    final userData = user.data() as Map<String, dynamic>?;
-                    if (userData == null) return Container();
+                    final userData = user.data() as Map<String, dynamic>?; // Safely cast to a Map
+                    if (userData == null) {
+                      return Container(); // Skip if userData is null
+                    }
 
                     final userId = user.id;
-                    final username = userData['username'] ?? 'Unknown User';
-                    final profilePicture = userData['profilePicture'] as String?;
+                    final username = userData['username'] ?? 'Unknown User'; // Default to 'Unknown User'
 
-                    if (userId == currentUser.uid) return Container();
+                    if (userId == currentUser.uid) {
+                      return Container(); // Skip current user
+                    }
 
                     return ListTile(
-                      leading: CircleAvatar(
-                        backgroundImage: profilePicture != null ? NetworkImage(profilePicture) : null,
-                        child: profilePicture == null ? Icon(Icons.person) : null,
-                      ),
                       title: Text(username),
                       onTap: () {
                         final chatId = generateChatId(currentUser.uid, userId);
@@ -127,5 +105,9 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
         ],
       ),
     );
+  }
+
+  String generateChatId(String userId1, String userId2) {
+    return userId1.compareTo(userId2) < 0 ? '$userId1\_$userId2' : '$userId2\_$userId1';
   }
 }
