@@ -21,10 +21,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Map<String, dynamic>> _randomCars = [];
   List<Map<String, dynamic>> _firestoreCars = [];
-  List<Map<String, dynamic>> _filteredCars = [];
   bool _isLoading = false;
   String? _errorMessage;
-  int _selectedIndex = 0;
+  int _selectedIndex = 0; // Track selected item in the bottom app bar
 
   @override
   void initState() {
@@ -32,21 +31,18 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController = TextEditingController();
     _fetchRandomCars();
     _fetchCarsFromFirestore();
-    _searchController.addListener(_filterCars);
   }
 
   @override
   void dispose() {
-    _searchController.removeListener(_filterCars);
     _searchController.dispose();
     super.dispose();
   }
 
-  /// Fetch user-added cars from Firestore
+  /// Fetch cars from Firestore
   Future<void> _fetchCarsFromFirestore() async {
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('cars')
-          .get();
+      final snapshot = await FirebaseFirestore.instance.collection('cars').get();
       final cars = snapshot.docs.map((doc) {
         final data = doc.data();
         return {
@@ -61,14 +57,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _firestoreCars = cars;
-        _filteredCars = _combinedCars;
       });
     } catch (e) {
       print('Error fetching cars from Firestore: $e');
     }
   }
 
-  /// Fetch cars from API
+  /// Fetch cars from the API
   Future<void> _fetchRandomCars() async {
     try {
       setState(() {
@@ -76,27 +71,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _errorMessage = null;
       });
 
-      final manufacturers = [
-        'Toyota',
-        'Honda',
-        'Ford',
-        'BMW',
-        'Tesla',
-        'Dodge'
-        'Chevrolet',
-        'Audi',
-        'Mercedes-Benz',
-        'Volkswagen',
-        'Nissan',
-        'Hyundai',
-        'Kia',
-
-      ];
+      final manufacturers = ['Toyota', 'Honda', 'Ford', 'BMW', 'Tesla'];
       List<Map<String, dynamic>> allCars = [];
 
       for (String make in manufacturers) {
-        final cars = await _carSearchService.fetchVehiclesByMakeAndModel(
-            make, '');
+        final cars = await _carSearchService.fetchVehiclesByMakeAndModel(make, '');
         allCars.addAll(cars);
       }
 
@@ -107,7 +86,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _randomCars = filteredCars;
-        _filteredCars = _combinedCars;
       });
     } catch (e) {
       setState(() {
@@ -122,35 +100,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Combine API and Firestore cars
-  List<Map<String, dynamic>> get _combinedCars =>
-      [
-        ..._randomCars,
-        ..._firestoreCars,
-      ];
+  List<Map<String, dynamic>> get _combinedCars => [
+    ..._randomCars,
+    ..._firestoreCars,
+  ];
 
-  /// Filter cars based on search input
-  void _filterCars() {
-    final query = _searchController.text.trim().toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        _filteredCars = _combinedCars;
-      } else {
-        _filteredCars = _combinedCars.where((car) {
-          final make = car['make']?.toLowerCase() ?? '';
-          final model = car['model']?.toLowerCase() ?? '';
-          final year = car['year']?.toString() ?? '';
-          return make.contains(query) || model.contains(query) ||
-              year.contains(query);
-        }).toList();
-      }
-    });
-
-    // Debugging search results
-    print("Search Query: $query");
-    print("Filtered Cars: $_filteredCars");
-  }
-
-  /// Handle bottom navigation bar taps
+  /// Navigate to selected screen
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -158,16 +113,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
     switch (index) {
       case 0:
-        break; // Home - already on HomeScreen
+      // Home - Already on HomeScreen
+        break;
       case 1:
+      // Navigate to Favorites Screen
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => FavoritesScreen()),
         );
         break;
       case 2:
-        break; // Placeholder for search
+      // Placeholder for search
+        break;
       case 3:
+      // Navigate to Profile Screen
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => ProfileScreen()),
@@ -179,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.grey[200],
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,33 +149,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Image.asset(
                     'assets/kisooo.png',
-                    width: 150,
-                    height: 150,
+                    width: 100,
+                    height: 100,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.2),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search by make, model, or year...',
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
+                    child: TextField(
+                      controller: _searchController,
+                      onSubmitted: (_) => print('Search logic here'),
+                      decoration: InputDecoration(
+                        hintText: 'Search for cars...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),
@@ -241,10 +186,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: const TextStyle(color: Colors.red),
                 ),
               )
-                  : _filteredCars.isEmpty
+                  : _combinedCars.isEmpty
                   ? const Center(child: Text('No cars found.'))
                   : TopCarsListView(
-                topCars: _filteredCars,
+                topCars: _combinedCars,
                 onCarTap: (car) {
                   Navigator.push(
                     context,
@@ -258,46 +203,61 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blue,
-        // Selected item color
-        unselectedItemColor: Colors.grey,
-        // Unselected item color
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+      bottomNavigationBar: BottomAppBar(
+        shape: CircularNotchedRectangle(),
+        notchMargin: 6.0,
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.favorite),
+              label: 'Favorites',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.search),
+              label: 'Search',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.account_circle),
+              label: 'Profile',
+            ),
+          ],
+          selectedItemColor: Colors.blue,
+          unselectedItemColor: Colors.grey,
+          backgroundColor: Colors.white,
+        ),
+      ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: "AddCar",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AddCarScreen()),
+              );
+            },
+            child: const Icon(Icons.add),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Favorites',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle),
-            label: 'Profile',
+          const SizedBox(height: 10),
+          FloatingActionButton(
+            heroTag: "Chat",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => UserSelectionScreen()),
+              );
+            },
+            child: const Icon(Icons.chat),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddCarScreen()),
-          );
-        },
-        backgroundColor: Colors.blue,
-        child: Image.asset(
-          'assets/add.png',
-          height: 30,
-          width: 30,
-        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
