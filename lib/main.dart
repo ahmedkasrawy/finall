@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: SplashScreen(), // Start with the splash screen
+      home: HomeScreen(), // Start with the splash screen
     );
   }
 }
