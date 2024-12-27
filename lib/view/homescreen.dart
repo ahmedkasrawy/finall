@@ -19,7 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final CarSearchService _carSearchService = CarSearchService();
   late TextEditingController _searchController;
   double _minPrice = 0;
-  double _maxPrice = 100000; // Set default max price
+  double _maxPrice = 100000;
   final currentUser = FirebaseAuth.instance.currentUser;
 
   List<Map<String, dynamic>> _randomCars = [];
@@ -32,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _errorTrending;
   String? username;
 
-  final Map<int, bool> _favorites = {}; // Track favorite state for trending cars
+  final Map<String, bool> _favorites = {}; // Track favorite state using car IDs
 
   @override
   void initState() {
@@ -84,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final trendingCarsWithPrices = cars.map((car) {
         return {
           ...car,
-          'price': random.nextInt(9501) + 500, // Random price between 500 and 10,000
+          'price': random.nextInt(9501) + 500,
         };
       }).toList();
 
@@ -102,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _toggleFavorite(Map<String, dynamic> car, int index) async {
+  Future<void> _toggleFavorite(Map<String, dynamic> car) async {
     if (currentUser == null) return;
 
     final favoritesRef = FirebaseFirestore.instance
@@ -110,21 +110,22 @@ class _HomeScreenState extends State<HomeScreen> {
         .doc(currentUser!.uid)
         .collection('cars');
 
-    final carDoc = await favoritesRef.doc(car['id']).get();
+    final carId = car['id'];
+    final carDoc = await favoritesRef.doc(carId).get();
 
     if (carDoc.exists) {
-      await favoritesRef.doc(car['id']).delete();
+      await favoritesRef.doc(carId).delete();
       Fluttertoast.showToast(
         msg: '${car['make']} ${car['model']} removed from favorites!',
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.black87,
+        backgroundColor: Colors.blue, // Blue background for toast
         textColor: Colors.white,
         fontSize: 16.0,
       );
     } else {
-      await favoritesRef.doc(car['id']).set({
-        'id': car['id'],
+      await favoritesRef.doc(carId).set({
+        'id': carId,
         'make': car['make'] ?? 'N/A',
         'model': car['model'] ?? 'N/A',
         'year': car['year'] ?? 'N/A',
@@ -135,14 +136,14 @@ class _HomeScreenState extends State<HomeScreen> {
         msg: '${car['make']} ${car['model']} added to favorites!',
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.blue, // Blue background for toast
         textColor: Colors.white,
         fontSize: 16.0,
       );
     }
 
     setState(() {
-      _favorites[index] = !carDoc.exists; // Toggle favorite state
+      _favorites[carId] = !carDoc.exists; // Toggle favorite state
     });
   }
 
@@ -312,13 +313,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemCount: _trendingCars.length,
                     itemBuilder: (context, index) {
                       final car = _trendingCars[index];
-                      final isFavorite = _favorites[index] ?? false;
+                      final carId = car['id'];
+                      final isFavorite = _favorites[carId] ?? false;
                       return GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => CarDetailsScreen(car: car),
+                              builder: (context) =>
+                                  CarDetailsScreen(car: car),
                             ),
                           );
                         },
@@ -340,7 +343,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               car['make'] ?? 'Unknown',
@@ -375,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               bottom: 8,
                               right: 8,
                               child: IconButton(
-                                onPressed: () => _toggleFavorite(car, index),
+                                onPressed: () => _toggleFavorite(car),
                                 icon: Icon(
                                   isFavorite ? Icons.favorite : Icons.favorite_border,
                                   color: isFavorite ? Colors.red : Colors.grey,
@@ -407,6 +411,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       : TopCarsListView(
                     topCars: _filteredCars,
                     onCarTap: (car) {
+                      _toggleFavorite(car);
                       Navigator.push(
                         context,
                         MaterialPageRoute(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'view/homescreen.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
@@ -32,16 +33,22 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         setState(() {
           _isEmailSent = true;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification email sent! Please check your inbox.'),
-          ),
+        Fluttertoast.showToast(
+          msg: 'Check your email, verify, and press again.',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.blue,
+          textColor: Colors.white,
+          fontSize: 16.0,
         );
       } on FirebaseAuthException catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.message}'),
-          ),
+        Fluttertoast.showToast(
+          msg: 'Error: ${e.message}',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0,
         );
       } finally {
         setState(() {
@@ -49,10 +56,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         });
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Email is already verified or user is not logged in.'),
-        ),
+      Fluttertoast.showToast(
+        msg: 'Email is already verified or user is not logged in.',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
       );
     }
   }
@@ -63,18 +73,26 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     });
     await _currentUser!.reload(); // Reload user to update email verification status
     if (_auth.currentUser!.emailVerified) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email verified!')),
+      Fluttertoast.showToast(
+        msg: 'Email verified!',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+        fontSize: 16.0,
       );
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => HomeScreen()),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Email not verified yet. Please check your inbox.'),
-        ),
+      Fluttertoast.showToast(
+        msg: 'Email not verified yet. Please check your inbox.',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
       );
     }
     setState(() {

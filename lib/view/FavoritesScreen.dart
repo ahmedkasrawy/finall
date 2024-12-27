@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../carDetails.dart';
 import 'mainlayout.dart';
 
@@ -29,6 +30,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Colors.blue,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
   }
 
   @override
@@ -168,9 +180,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                   car['image'],
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) =>
-                                      Icon(Icons.car_rental, size: 80, color: Colors.grey[400]),
+                                      Icon(Icons.car_rental,
+                                          size: 80, color: Colors.grey[400]),
                                 )
-                                    : Icon(Icons.car_rental, size: 80, color: Colors.grey[400]),
+                                    : Icon(Icons.car_rental,
+                                    size: 80, color: Colors.grey[400]),
                               ),
                             ),
                             // Car Details
@@ -212,9 +226,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                       .collection('cars')
                                       .doc(favoriteCars[index].id)
                                       .delete();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Removed from favorites')),
-                                  );
+                                  _showToast('Removed from favorites');
                                 },
                                 icon: Icon(Icons.delete, size: 16, color: Colors.white),
                                 label: Text(

@@ -21,9 +21,17 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
       return MainLayout(
         selectedIndex: 2,
         child: Center(
-          child: Text(
-            "Please log in to use the chat feature.",
-            style: TextStyle(fontSize: 16, color: Colors.grey),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_outline, size: 80, color: Colors.grey[400]),
+              SizedBox(height: 16),
+              Text(
+                "Please log in to use the chat feature.",
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       );
@@ -49,7 +57,7 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+                  borderRadius: BorderRadius.circular(12.0),
                   borderSide: BorderSide.none,
                 ),
                 prefixIcon: Icon(Icons.search, color: Colors.grey),
@@ -113,8 +121,13 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
 
                     return Card(
                       elevation: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.blueAccent.withOpacity(0.1),
+                          child: Icon(Icons.person, color: Colors.blueAccent),
+                        ),
                         title: Text(
                           username,
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

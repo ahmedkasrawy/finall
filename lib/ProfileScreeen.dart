@@ -5,6 +5,7 @@ import 'package:finall/view/mybookingscreen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 import '../settings.dart';
 import '../wallet.dart';
@@ -44,8 +45,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No user is logged in.')),
+        Fluttertoast.showToast(
+          msg: 'No user is logged in.',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.blue,
+          textColor: Colors.white,
+          fontSize: 16.0,
         );
         return;
       }
@@ -57,12 +63,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         MaterialPageRoute(builder: (context) => LoginScreen()),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Account deleted successfully.')),
+      Fluttertoast.showToast(
+        msg: 'Account deleted successfully.',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.blue,
+        textColor: Colors.white,
+        fontSize: 16.0,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting account: ${e.toString()}')),
+      Fluttertoast.showToast(
+        msg: 'Error deleting account: ${e.toString()}',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
       );
     }
   }
@@ -79,7 +95,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('Cancel'),
+              child: Text('Cancel',style: TextStyle(color: Colors.black)),
             ),
             TextButton(
               onPressed: () {
@@ -90,7 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   MaterialPageRoute(builder: (context) => LoginScreen()),
                 );
               },
-              child: Text("Yes, I'm sure"),
+              child: Text("Yes, I'm sure",style: TextStyle(color: Colors.black),),
             ),
           ],
         );
@@ -103,7 +119,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     return MainLayout(
-      selectedIndex: 3, // Assuming Profile is at index 3
+      selectedIndex: 3,
       child: Center(
         child: SingleChildScrollView(
           child: Column(
@@ -138,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               _buildProfileOption(
                 context,
-                label: 'My Cars', // Replacing "My Transactions"
+                label: 'My Cars',
                 icon: Icons.directions_car,
                 onTap: () {
                   Navigator.push(

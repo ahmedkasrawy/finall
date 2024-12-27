@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class TopCarsListView extends StatefulWidget {
   final List<Map<String, dynamic>> topCars;
@@ -32,8 +33,13 @@ class _TopCarsListViewState extends State<TopCarsListView> {
     if (carDoc.exists) {
       // Remove from favorites
       await favoritesRef.doc(car['id']).delete();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${car['name'] ?? 'Car'} removed from favorites!')),
+      Fluttertoast.showToast(
+        msg: '${car['name'] ?? 'Car'} removed from favorites!',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.black87,
+        textColor: Colors.white,
+        fontSize: 16.0,
       );
     } else {
       // Add to favorites
@@ -46,8 +52,13 @@ class _TopCarsListViewState extends State<TopCarsListView> {
         'price': car['price'] ?? (500 + _random.nextInt(9500)),
         'image': car['image'] ?? 'https://via.placeholder.com/150',
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${car['name'] ?? 'Car'} added to favorites!')),
+      Fluttertoast.showToast(
+        msg: '${car['name'] ?? 'Car'} added to favorites!',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.blueAccent,
+        textColor: Colors.white,
+        fontSize: 16.0,
       );
     }
 
