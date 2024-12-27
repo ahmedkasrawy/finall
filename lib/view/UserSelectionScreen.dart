@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'ChatScreen.dart';
-import 'bottom.dart';
 import 'mainlayout.dart';
 
 class UserSelectionScreen extends StatefulWidget {
@@ -21,7 +20,12 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
     if (currentUser == null) {
       return MainLayout(
         selectedIndex: 2,
-        child: Center(child: Text("Please log in to use the chat feature.")),
+        child: Center(
+          child: Text(
+            "Please log in to use the chat feature.",
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ),
       );
     }
 
@@ -29,8 +33,10 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
       selectedIndex: 2,
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          // Search Bar
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            color: Colors.blueAccent,
             child: TextField(
               controller: _searchController,
               onChanged: (value) {
@@ -39,63 +45,95 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
                 });
               },
               decoration: InputDecoration(
-                hintText: 'Search by username...',
+                hintText: 'Search users...',
+                filled: true,
+                fillColor: Colors.white,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
+                  borderSide: BorderSide.none,
                 ),
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(Icons.search, color: Colors.grey),
               ),
             ),
           ),
+          // User List
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('users').snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.person_outline, size: 80, color: Colors.grey[400]),
+                        SizedBox(height: 16),
+                        Text(
+                          'No users found.',
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
                 }
 
                 final users = snapshot.data!.docs;
 
+                // Filter users by search query
                 final filteredUsers = users.where((user) {
-                  final userData = user.data() as Map<String, dynamic>?;
-                  if (userData == null) return false;
-
-                  final username = userData['username'] ?? '';
-                  return username.toLowerCase().contains(_searchQuery);
+                  final userData = user.data() as Map<String, dynamic>? ?? {};
+                  final username = userData['username']?.toLowerCase() ?? '';
+                  return username.contains(_searchQuery);
                 }).toList();
 
+                if (filteredUsers.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No users match your search.',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  );
+                }
+
                 return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 16.0),
                   itemCount: filteredUsers.length,
                   itemBuilder: (context, index) {
                     final user = filteredUsers[index];
-                    final userData = user.data() as Map<String, dynamic>?;
-                    if (userData == null) {
-                      return Container();
-                    }
-
+                    final userData = user.data() as Map<String, dynamic>;
                     final userId = user.id;
                     final username = userData['username'] ?? 'Unknown User';
 
-                    if (userId == currentUser.uid) {
-                      return Container();
-                    }
+                    // Skip the current user
+                    if (userId == currentUser.uid) return SizedBox.shrink();
 
-                    return ListTile(
-                      title: Text(username),
-                      onTap: () {
-                        final chatId = generateChatId(currentUser.uid, userId);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ChatScreen(
-                              chatId: chatId,
-                              recipientName: username,
-                              recipientId: userId,
+                    return Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: ListTile(
+                        title: Text(
+                          username,
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        trailing: Icon(Icons.chat_bubble_outline, color: Colors.blueAccent),
+                        onTap: () {
+                          final chatId = generateChatId(currentUser.uid, userId);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(
+                                chatId: chatId,
+                                recipientName: username,
+                                recipientId: userId,
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     );
                   },
                 );

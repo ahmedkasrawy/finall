@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class CarSearchService {
   final String baseUrl = 'https://mc-api.marketcheck.com/v2/';
-  final String apiKey = 'L7B7776KRfDuyGB31ugyHbJhk1u7uBsL';
+  final String apiKey = 'Jcr1LyZr2s28fEkAWQwHEUEedRPKu8f3';
 
   /// Fetch vehicles by make and model
   Future<List<Map<String, dynamic>>> fetchVehiclesByMakeAndModel(String make, String model) async {
@@ -17,16 +17,19 @@ class CarSearchService {
         final data = json.decode(response.body);
         final listings = data['listings'] as List;
 
-        // Extract vehicle data, including media links directly from the response
+        // Extract vehicle data and ensure fallback image is applied consistently
         List<Map<String, dynamic>> vehicles = listings.map((vehicle) {
           final media = vehicle['media'] ?? {};
           final photoLinks = media['photo_links'] as List<dynamic>? ?? [];
 
+          // Apply the fallback image if no valid image is found
           return {
-            'make': vehicle['build']['make'],
-            'model': vehicle['build']['model'],
-            'year': vehicle['build']['year'],
-            'image': photoLinks.isNotEmpty ? photoLinks.first : 'https://via.placeholder.com/150',
+            'make': vehicle['build']['make'] ?? 'Unknown Make',
+            'model': vehicle['build']['model'] ?? 'Unknown Model',
+            'year': vehicle['build']['year'] ?? 'Unknown Year',
+            'image': (photoLinks.isNotEmpty && photoLinks.first.toString().isNotEmpty)
+                ? photoLinks.first
+                : 'assets/kisooo.png',
           };
         }).toList();
 

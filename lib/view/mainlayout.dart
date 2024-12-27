@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../ProfileScreen.dart';
+import '../ProfileScreeen.dart';
 import 'homescreen.dart';
 import 'FavoritesScreen.dart';
 import 'UserSelectionScreen.dart';
@@ -47,6 +47,7 @@ class MainLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[200],
       body: child,
       bottomNavigationBar: BottomNavigation(
         selectedIndex: selectedIndex,

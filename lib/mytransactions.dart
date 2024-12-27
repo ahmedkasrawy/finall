@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'profilescreen.dart';
+import 'ProfileScreeen.dart';
+import 'view/profilescreen.dart';
 import 'search.dart';
 import 'view/homescreen.dart';
 

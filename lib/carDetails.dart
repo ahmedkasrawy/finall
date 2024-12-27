@@ -27,6 +27,7 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
   Widget build(BuildContext context) {
     final String carName =
         '${widget.car['make'] ?? 'Unknown'} ${widget.car['model'] ?? 'Car'}';
+    final double price = widget.car['price'] ?? 0.0;
 
     return Scaffold(
       backgroundColor: Colors.grey[200],
@@ -46,6 +47,13 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
                     widget.car['image'],
                     height: 200,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.asset(
+                        'assets/kisooo.png',
+                        height: 200,
+                        fit: BoxFit.cover,
+                      );
+                    },
                   ),
                 ),
               SizedBox(height: 16),
@@ -67,7 +75,7 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
                 style: TextStyle(fontSize: 18),
               ),
               Text(
-                'Price per day: \$${widget.car['price_per_day'] ?? 'N/A'}',
+                'Price per day: \$${price.toStringAsFixed(2)}',
                 style: TextStyle(fontSize: 18),
               ),
               SizedBox(height: 16),
@@ -109,7 +117,7 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
                         'model': widget.car['model'],
                         'pickUpDate': _pickUpDate!.toIso8601String(),
                         'dropOffDate': _dropOffDate!.toIso8601String(),
-                        'price_per_day': widget.car['price_per_day'],
+                        'price_per_day': price,
                       },
                     );
                   }));

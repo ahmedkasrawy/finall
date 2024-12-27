@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,8 +14,10 @@ class TopCarsListView extends StatefulWidget {
 }
 
 class _TopCarsListViewState extends State<TopCarsListView> {
-  final Map<int, bool> _favorites = {}; // To track favorite state for each car
+  final Map<int, bool> _favorites = {}; // Track favorite state for each car
   final currentUser = FirebaseAuth.instance.currentUser;
+
+  final _random = Random(); // Random number generator for price
 
   Future<void> _toggleFavorite(Map<String, dynamic> car, int index) async {
     if (currentUser == null) return;
@@ -35,10 +38,13 @@ class _TopCarsListViewState extends State<TopCarsListView> {
     } else {
       // Add to favorites
       await favoritesRef.doc(car['id']).set({
-        'name': car['name'] ?? '${car['make'] ?? 'Unknown'} ${car['model'] ?? 'Car'}',
-        'image': car['image'] ?? '', // Provide empty string as fallback
-        'price': car['price'] ?? 'N/A', // Default to 'N/A' if null
-        'modelYear': car['year'] ?? 'N/A', // Default to 'N/A' if null
+        'id': car['id'],
+        'name': car['name'] ?? '${car['make']} ${car['model']}',
+        'make': car['make'] ?? 'N/A',
+        'model': car['model'] ?? 'N/A',
+        'year': car['year'] ?? 'N/A',
+        'price': car['price'] ?? (500 + _random.nextInt(9500)),
+        'image': car['image'] ?? 'https://via.placeholder.com/150',
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${car['name'] ?? 'Car'} added to favorites!')),
@@ -46,10 +52,29 @@ class _TopCarsListViewState extends State<TopCarsListView> {
     }
 
     setState(() {
-      _favorites[index] = !(carDoc.exists); // Toggle the favorite state
+      _favorites[index] = !carDoc.exists; // Toggle favorite state
     });
   }
 
+  Widget buildImage(String imagePath) {
+    if (imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        height: 80,
+        width: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            Image.asset('assets/kisooo.png', height: 80, width: 80, fit: BoxFit.cover),
+      );
+    } else {
+      return Image.asset(
+        imagePath,
+        height: 80,
+        width: 80,
+        fit: BoxFit.cover,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,86 +82,62 @@ class _TopCarsListViewState extends State<TopCarsListView> {
       itemCount: widget.topCars.length,
       itemBuilder: (context, index) {
         final car = widget.topCars[index];
+
+        // Assign a random price if not already set
+        car['price'] ??= 500 + _random.nextInt(9500);
+
         final isFavorite = _favorites[index] ?? false;
 
         return GestureDetector(
           onTap: () => widget.onCarTap(car),
           child: Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            elevation: 4,
+            elevation: 6,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(12.0),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Car Image
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: car['image'] != null && car['image'].isNotEmpty
-                        ? Image.network(
-                      car['image'],
-                      height: 80,
-                      width: 80,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 80,
-                          width: 80,
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.broken_image,
-                            color: Colors.grey,
-                          ),
-                        );
-                      },
-                    )
-                        : Container(
-                      height: 80,
-                      width: 80,
-                      color: Colors.grey[300],
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey,
-                      ),
-                    ),
+                    child: buildImage(car['image']),
                   ),
                   const SizedBox(width: 16),
                   // Car Details
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           car['name'] ?? '${car['make']} ${car['model']}' ?? 'Unknown Car',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         Text(
                           'Make: ${car['make'] ?? 'N/A'}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                          ),
+                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                         ),
                         Text(
                           'Model: ${car['model'] ?? 'N/A'}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                          ),
+                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                         ),
                         Text(
                           'Year: ${car['year'] ?? 'N/A'}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
+                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Price: \$${car['price']}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
                           ),
                         ),
                       ],

@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
-import 'MainLayout.dart'; // Use MainLayout for consistent navigation bar
+import 'MainLayout.dart';
 
 class AddCarScreen extends StatefulWidget {
   const AddCarScreen({Key? key}) : super(key: key);
@@ -26,7 +26,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final ImagePicker picker = ImagePicker();
+      final picker = ImagePicker();
       final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
@@ -47,7 +47,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: ${e.toString()}')),
+        SnackBar(content: Text('Error picking image: $e')),
       );
     }
   }
@@ -135,7 +135,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
       Navigator.of(context).pop();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(content: Text('Error: $e')),
       );
     }
   }
@@ -143,7 +143,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
   @override
   Widget build(BuildContext context) {
     return MainLayout(
-      selectedIndex: 0, // Highlight the Home tab or relevant section
+      selectedIndex: 0,
       child: Stack(
         children: [
           Padding(
@@ -152,75 +152,53 @@ class _AddCarScreenState extends State<AddCarScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Image Section
                   if (_selectedImage != null)
                     Center(
                       child: Image.memory(
                         _selectedImage!,
-                        height: 150,
-                        width: 150,
+                        height: 180,
+                        width: double.infinity,
                         fit: BoxFit.cover,
                       ),
                     )
                   else
                     Center(
                       child: Container(
-                        height: 150,
-                        width: 150,
+                        height: 180,
+                        width: double.infinity,
                         color: Colors.grey[300],
-                        child: Icon(Icons.image, size: 50, color: Colors.grey[600]),
+                        child: Icon(Icons.image, size: 80, color: Colors.grey[600]),
                       ),
                     ),
                   const SizedBox(height: 16),
                   Center(
                     child: ElevatedButton.icon(
                       onPressed: _pickImage,
-                      icon: const Icon(Icons.add_photo_alternate),
-                      label: const Text('Add Photo'),
+                      icon: Icon(Icons.add_photo_alternate_outlined),
+                      label: Text('Add Photo'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _makeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Car Make',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.directions_car),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _modelController,
-                    decoration: const InputDecoration(
-                      labelText: 'Car Model',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.drive_eta),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _yearController,
-                    decoration: const InputDecoration(
-                      labelText: 'Year',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.calendar_today),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _priceController,
-                    decoration: const InputDecoration(
-                      labelText: 'Price',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.attach_money),
-                    ),
-                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 24),
+                  // Input Fields
+                  _buildTextField('Car Make', Icons.directions_car, _makeController),
+                  const SizedBox(height: 16),
+                  _buildTextField('Car Model', Icons.drive_eta, _modelController),
+                  const SizedBox(height: 16),
+                  _buildTextField('Year', Icons.calendar_today, _yearController,
+                      keyboardType: TextInputType.number),
+                  const SizedBox(height: 16),
+                  _buildTextField('Price', Icons.attach_money, _priceController,
+                      keyboardType: TextInputType.number),
+                  const SizedBox(height: 32),
+                  // Save Button
                   Center(
                     child: ElevatedButton(
                       onPressed: _saveCar,
-                      child: const Text('Save Car'),
+                      child: Text('Save Car'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                         shape: RoundedRectangleBorder(
@@ -241,11 +219,11 @@ class _AddCarScreenState extends State<AddCarScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const CircularProgressIndicator(),
+                      CircularProgressIndicator(),
                       const SizedBox(height: 16),
                       Text(
                         'Uploading: ${_uploadProgress.toStringAsFixed(0)}%',
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: Colors.white),
                       ),
                     ],
                   ),
@@ -254,6 +232,19 @@ class _AddCarScreenState extends State<AddCarScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTextField(String label, IconData icon, TextEditingController controller,
+      {TextInputType keyboardType = TextInputType.text}) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(icon),
+      ),
+      keyboardType: keyboardType,
     );
   }
 }

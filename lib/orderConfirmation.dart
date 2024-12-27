@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class OrderConfirmation extends StatefulWidget {
   final Map<String, dynamic> orderDetails;
@@ -12,16 +13,32 @@ class OrderConfirmation extends StatefulWidget {
 
 class _OrderConfirmationState extends State<OrderConfirmation> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late double totalPrice;
 
   @override
   void initState() {
     super.initState();
+    _calculateTotalPrice();
     _saveOrderToFirestore();
+  }
+
+  /// Calculate total price based on price_per_day and booking duration
+  void _calculateTotalPrice() {
+    final pricePerDay = widget.orderDetails['price_per_day'] ?? 0.0;
+
+    final pickUpDate = DateTime.parse(widget.orderDetails['pickUpDate']);
+    final dropOffDate = DateTime.parse(widget.orderDetails['dropOffDate']);
+
+    final days = dropOffDate.difference(pickUpDate).inDays;
+    totalPrice = pricePerDay * (days > 0 ? days : 1); // Ensure at least 1 day
   }
 
   Future<void> _saveOrderToFirestore() async {
     try {
-      // Save the order details to the Firestore database
+      // Add the totalPrice to the order details
+      widget.orderDetails['totalPrice'] = totalPrice;
+
+      // Save the order details to Firestore
       await _firestore.collection('orders').add(widget.orderDetails);
 
       // Show a success message
@@ -42,42 +59,42 @@ class _OrderConfirmationState extends State<OrderConfirmation> {
     final orderDetails = widget.orderDetails;
 
     return Scaffold(
-      backgroundColor: Colors.grey[200], // Sets the background color of the screen
+      backgroundColor: Colors.grey[200],
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, // Centers items vertically
-          crossAxisAlignment: CrossAxisAlignment.center, // Aligns items horizontally
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Row(
-              mainAxisSize: MainAxisSize.min, // Ensures the row doesn't take extra space
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'Payment Confirmed',
                   style: TextStyle(
                     fontSize: 24,
                     color: Colors.black,
-                    decoration: TextDecoration.none, // Removes the line under the text
+                    decoration: TextDecoration.none,
                   ),
                 ),
-                SizedBox(width: 8.0), // Adds spacing between text and the icon
+                SizedBox(width: 8.0),
                 ImageIcon(
-                  AssetImage('assets/check.png'), // Path to the image asset
+                  AssetImage('assets/check.png'),
                   size: 24.0,
-                  color: Colors.green, // Set the color of the icon
+                  color: Colors.green,
                 ),
               ],
             ),
-            SizedBox(height: 16.0), // Adds spacing between the two text elements
+            SizedBox(height: 16.0),
             Text(
               "Thank you for choosing\nKasrawy Group!",
-              textAlign: TextAlign.center, // Ensures the text is centered
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 30,
                 color: Colors.black,
-                decoration: TextDecoration.none, // Removes the line under the text
+                decoration: TextDecoration.none,
               ),
             ),
-            SizedBox(height: 32.0), // Adds spacing
+            SizedBox(height: 32.0),
             // Order Summary
             Container(
               padding: const EdgeInsets.all(16.0),
@@ -109,11 +126,11 @@ class _OrderConfirmationState extends State<OrderConfirmation> {
                     style: TextStyle(fontSize: 18, color: Colors.grey[700]),
                   ),
                   Text(
-                    'Pick-Up Date: ${orderDetails['pickUpDate']}',
+                    'Pick-Up Date: ${DateFormat.yMMMd().format(DateTime.parse(orderDetails['pickUpDate']))}',
                     style: TextStyle(fontSize: 18, color: Colors.grey[700]),
                   ),
                   Text(
-                    'Drop-Off Date: ${orderDetails['dropOffDate']}',
+                    'Drop-Off Date: ${DateFormat.yMMMd().format(DateTime.parse(orderDetails['dropOffDate']))}',
                     style: TextStyle(fontSize: 18, color: Colors.grey[700]),
                   ),
                   Text(
@@ -124,7 +141,7 @@ class _OrderConfirmationState extends State<OrderConfirmation> {
                   Divider(color: Colors.grey),
                   SizedBox(height: 8.0),
                   Text(
-                    'Total Price: \$${orderDetails['totalPrice']}',
+                    'Total Price: \$${totalPrice.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,

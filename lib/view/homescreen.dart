@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../ProfileScreen.dart';
 import '../top_cars_list_view.dart';
 import '../carDetails.dart';
 import '../api/api.dart';
@@ -48,10 +47,10 @@ class _HomeScreenState extends State<HomeScreen> {
         final data = doc.data();
         return {
           'id': doc.id,
-          'make': data['make'],
-          'model': data['model'],
-          'year': data['year'],
-          'price': data['price'],
+          'make': data['make'] ?? 'Unknown',
+          'model': data['model'] ?? 'Unknown',
+          'year': data['year'] ?? 'Unknown',
+          'price': data['price'] ?? 'Unknown',
           'image': data['image'] ?? 'https://via.placeholder.com/150',
         };
       }).toList();
@@ -62,6 +61,9 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } catch (e) {
       print('Error fetching cars from Firestore: $e');
+      setState(() {
+        _errorMessage = 'Error fetching cars from Firestore. Please try again.';
+      });
     }
   }
 
@@ -72,13 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _errorMessage = null;
       });
 
-      final manufacturers = [
-        'Toyota',
-        'Honda',
-        'Ford',
-        'BMW',
-        'Tesla',
-      ];
+      final manufacturers = ['Toyota', 'Honda', 'Ford', 'BMW', 'Tesla'];
 
       List<Map<String, dynamic>> allCars = [];
       for (String make in manufacturers) {
@@ -97,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error fetching cars: $e';
+        _errorMessage = 'Error fetching cars from the API: $e';
         _randomCars = [];
       });
     } finally {
@@ -127,42 +123,78 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MainLayout(
-      selectedIndex: 0, // Highlight Home
-      child: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search cars...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.search),
-                ),
-              ),
-            ),
-            Expanded(
-              child: _isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : _errorMessage != null
-                  ? Center(child: Text(_errorMessage!))
-                  : TopCarsListView(
-                topCars: _filteredCars,
-                onCarTap: (car) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CarDetailsScreen(car: car),
+    return Scaffold(
+      body: MainLayout(
+        selectedIndex: 0, // Highlight Home
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Image.asset(
+                      'assets/kisooo.png',
+                      width: 100,
+                      height: 100,
                     ),
-                  );
-                },
-              ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search cars...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: _isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : _errorMessage != null
+                      ? Center(child: Text(_errorMessage!))
+                      : TopCarsListView(
+                    topCars: _filteredCars,
+                    onCarTap: (car) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CarDetailsScreen(car: car),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+        ),
+      ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 45),
+        child: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => AddCarScreen()),
+            );
+          },
+          backgroundColor: Colors.transparent, // Set background to transparent
+          elevation: 0, // Remove shadow
+          child: Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/add.png'),
+                fit: BoxFit.cover,
+              ),
+              shape: BoxShape.circle, // Ensures the button stays circular
+            ),
+          ),
         ),
       ),
     );

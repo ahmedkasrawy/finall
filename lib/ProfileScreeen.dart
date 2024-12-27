@@ -4,9 +4,11 @@ import 'package:finall/view/mybookingscreen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'wallet.dart';
-import 'mytransactions.dart';
-import 'settings.dart';
+
+import '../mytransactions.dart';
+import '../settings.dart';
+import '../wallet.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   @override
