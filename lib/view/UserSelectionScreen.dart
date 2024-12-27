@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'ChatScreen.dart';
 import 'bottom.dart';
+import 'mainlayout.dart';
 
 class UserSelectionScreen extends StatefulWidget {
   @override
@@ -18,14 +19,14 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
-      return MainScaffold(
-        selectedIndex: 3,
+      return MainLayout(
+        selectedIndex: 2,
         child: Center(child: Text("Please log in to use the chat feature.")),
       );
     }
 
-    return MainScaffold(
-      selectedIndex: 3,
+    return MainLayout(
+      selectedIndex: 2,
       child: Column(
         children: [
           Padding(
@@ -34,7 +35,7 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
               controller: _searchController,
               onChanged: (value) {
                 setState(() {
-                  _searchQuery = value.trim().toLowerCase(); // Update the search query
+                  _searchQuery = value.trim().toLowerCase();
                 });
               },
               decoration: InputDecoration(
@@ -56,7 +57,6 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
 
                 final users = snapshot.data!.docs;
 
-                // Filter users based on the search query
                 final filteredUsers = users.where((user) {
                   final userData = user.data() as Map<String, dynamic>?;
                   if (userData == null) return false;
@@ -69,16 +69,16 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
                   itemCount: filteredUsers.length,
                   itemBuilder: (context, index) {
                     final user = filteredUsers[index];
-                    final userData = user.data() as Map<String, dynamic>?; // Safely cast to a Map
+                    final userData = user.data() as Map<String, dynamic>?;
                     if (userData == null) {
-                      return Container(); // Skip if userData is null
+                      return Container();
                     }
 
                     final userId = user.id;
-                    final username = userData['username'] ?? 'Unknown User'; // Default to 'Unknown User'
+                    final username = userData['username'] ?? 'Unknown User';
 
                     if (userId == currentUser.uid) {
-                      return Container(); // Skip current user
+                      return Container();
                     }
 
                     return ListTile(

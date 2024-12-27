@@ -7,7 +7,7 @@ import '../carDetails.dart';
 import '../api/api.dart';
 import 'AddCarScreen.dart';
 import 'FavoritesScreen.dart';
-import 'bottom.dart';
+import 'mainlayout.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -78,13 +78,6 @@ class _HomeScreenState extends State<HomeScreen> {
         'Ford',
         'BMW',
         'Tesla',
-        'Chevrolet',
-        'Audi',
-        'Mercedes-Benz',
-        'Volkswagen',
-        'Nissan',
-        'Hyundai',
-        'Kia',
       ];
 
       List<Map<String, dynamic>> allCars = [];
@@ -134,101 +127,43 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MainScaffold(
-      selectedIndex: 0,
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Image.asset(
-                      'assets/kisooo.png',
-                      width: 150,
-                      height: 150,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.2),
-                              spreadRadius: 2,
-                              blurRadius: 5,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Search by make, model, or year...',
-                            prefixIcon: const Icon(Icons.search),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  "Top Cars",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-              ),
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _errorMessage != null
-                    ? Center(
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: Colors.red),
+    return MainLayout(
+      selectedIndex: 0, // Highlight Home
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search cars...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                )
-                    : _filteredCars.isEmpty
-                    ? const Center(child: Text('No cars found.'))
-                    : TopCarsListView(
-                  topCars: _filteredCars,
-                  onCarTap: (car) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CarDetailsScreen(car: car),
-                      ),
-                    );
-                  },
+                  prefixIcon: Icon(Icons.search),
                 ),
               ),
-            ],
-          ),
-          Positioned(
-            bottom: 20,
-            right: 20,
-            child: FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AddCarScreen()),
-                );
-              },
-              backgroundColor: Colors.blue,
-              child: const Icon(Icons.add),
             ),
-          ),
-        ],
+            Expanded(
+              child: _isLoading
+                  ? Center(child: CircularProgressIndicator())
+                  : _errorMessage != null
+                  ? Center(child: Text(_errorMessage!))
+                  : TopCarsListView(
+                topCars: _filteredCars,
+                onCarTap: (car) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CarDetailsScreen(car: car),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

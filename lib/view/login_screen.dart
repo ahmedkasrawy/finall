@@ -1,9 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:finall/view/signup.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'homescreen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,88 +12,76 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController usernameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
+  final TextEditingController userEmailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   String? errorMessage;
+  bool isLoading = false;
 
   Future<void> login() async {
-    try {
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
+    if (userEmailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = "Both fields are required.";
+      });
+      return;
+    }
 
-      User? user = userCredential.user;
-      if (user != null) {
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    final String userInput = userEmailController.text.trim();
+    final String password = passwordController.text.trim();
+
+    try {
+      String emailToLogin = userInput;
+
+      // If input is not an email, treat it as a username
+      if (!userInput.contains('@')) {
+        final userQuery = await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)
+            .where('username', isEqualTo: userInput)
             .get();
 
-        if (!userDoc.exists) {
-          throw Exception("User data not found in Firestore.");
+        if (userQuery.docs.isEmpty) {
+          throw FirebaseAuthException(
+            code: 'user-not-found',
+            message: 'No user found with this username.',
+          );
         }
 
-        Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
-
-        if (userData == null || userData['username'] != usernameController.text.trim()) {
-          throw Exception("Username does not match.");
-        }
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
-        );
+        emailToLogin = userQuery.docs.first.data()['email'];
       }
+
+      // Authenticate with Firebase using email
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailToLogin,
+        password: password,
+      );
+
+      // Navigate to the home screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomeScreen()),
+      );
     } on FirebaseAuthException catch (e) {
       setState(() {
         if (e.code == 'user-not-found') {
-          errorMessage = "No user found for that email.";
+          errorMessage = "No user found for this email or username.";
         } else if (e.code == 'wrong-password') {
-          errorMessage = "Wrong password provided for that user.";
+          errorMessage = "Incorrect password. Please try again.";
         } else {
           errorMessage = "An error occurred: ${e.message}";
         }
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
-    }
-  }
-
-  Future<void> googleLogin() async {
-    try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-
-      if (googleUser == null) {
-        return; // User canceled the Google Sign-In
-      }
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      UserCredential userCredential =
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Google login successful!")),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Google login failed: $e")),
-      );
+      setState(() {
+        errorMessage = "An error occurred: ${e.toString()}";
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -111,24 +97,16 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               Image.asset('assets/kas.png', height: 200, width: 200),
               const SizedBox(height: 16),
+              // Username or Email Field
               TextField(
-                controller: usernameController,
+                controller: userEmailController,
                 decoration: const InputDecoration(
-                  hintText: 'Username',
+                  hintText: 'Username or Email',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.name,
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  hintText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
+              // Password Field
               TextField(
                 controller: passwordController,
                 obscureText: true,
@@ -144,16 +122,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: const TextStyle(color: Colors.red),
                 ),
               const SizedBox(height: 16),
+              // Login Button
               SizedBox(
-                width: 220,
+                width: double.infinity,
                 child: ElevatedButton(
                   onPressed: login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text(
+                  child: isLoading
+                      ? const CircularProgressIndicator(
+                    color: Colors.white,
+                  )
+                      : const Text(
                     'Login',
                     style: TextStyle(
                       fontSize: 16,
@@ -163,33 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: 220,
-                child: ElevatedButton(
-                  onPressed: googleLogin, // Google login method
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    side: const BorderSide(color: Colors.black),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset('assets/google.png', width: 30, height: 30),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Login with Google',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+              // Navigate to Signup
               TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -201,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   'Don’t have an account? Sign up!',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.red,
+                    color: Colors.blue,
                     decoration: TextDecoration.underline,
                   ),
                 ),

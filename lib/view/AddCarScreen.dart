@@ -5,8 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
-
-import 'bottom.dart';
+import 'MainLayout.dart'; // Use MainLayout for consistent navigation bar
 
 class AddCarScreen extends StatefulWidget {
   const AddCarScreen({Key? key}) : super(key: key);
@@ -37,7 +36,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
         img.Image? decodedImage = img.decodeImage(originalBytes);
         if (decodedImage != null) {
           Uint8List compressedBytes = Uint8List.fromList(
-            img.encodeJpg(decodedImage, quality: 75), // Adjust quality as needed
+            img.encodeJpg(decodedImage, quality: 75),
           );
           setState(() {
             _selectedImage = compressedBytes;
@@ -143,8 +142,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MainScaffold(
-      selectedIndex: 2, // Highlight the Add Car tab in the bottom navigation bar
+    return MainLayout(
+      selectedIndex: 0, // Highlight the Home tab or relevant section
       child: Stack(
         children: [
           Padding(

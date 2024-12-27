@@ -1,10 +1,9 @@
-import 'package:finall/view/FavoritesScreen.dart';
-import 'package:finall/view/homescreen.dart';
 import 'package:finall/view/login_screen.dart';
+import 'package:finall/view/mainlayout.dart';
+import 'package:finall/view/mybookingscreen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import 'wallet.dart';
 import 'mytransactions.dart';
 import 'settings.dart';
@@ -15,7 +14,30 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  int _selectedIndex = 3; // Set to 3 because Profile is the fourth tab
+  String? username;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsername();
+  }
+
+  Future<void> _fetchUsername() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        setState(() {
+          username = userDoc.data()?['username'] ?? 'No Name';
+        });
+      } catch (e) {
+        print('Error fetching username: $e');
+        setState(() {
+          username = 'No Name';
+        });
+      }
+    }
+  }
 
   Future<void> _deleteAccount(BuildContext context) async {
     try {
@@ -27,13 +49,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      // Delete user data from Firestore
       await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
-
-      // Delete user from FirebaseAuth
       await user.delete();
 
-      // Navigate to the login screen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => LoginScreen()),
       );
@@ -58,14 +76,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
                 FirebaseAuth.instance.signOut();
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => LoginScreen()),
@@ -83,26 +101,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: Colors.grey[200],
-      appBar: AppBar(
-        backgroundColor: Colors.grey[200],
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-            );
-          },
-          icon: Icon(Icons.arrow_back, color: Colors.black),
-        ),
-        title: Text(
-          'My Profile',
-          style: TextStyle(color: Colors.black),
-        ),
-      ),
-      body: Center(
+    return MainLayout(
+      selectedIndex: 3, // Assuming Profile is at index 3
+      child: Center(
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -115,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               SizedBox(height: 24.0),
               Text(
-                user?.displayName ?? "No Name",
+                username ?? "Loading...",
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               Text(
@@ -142,6 +143,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => MyTransactions()),
+                  );
+                },
+              ),
+              _buildProfileOption(
+                context,
+                label: 'My Bookings',
+                icon: Icons.book_online,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => MyBookingsScreen()),
                   );
                 },
               ),
@@ -183,50 +195,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blue, // Selected item color
-        unselectedItemColor: Colors.grey, // Unselected item color
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Favorites',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle),
-            label: 'Profile',
-          ),
-        ],
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-            );
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => FavoritesScreen()),
-            );
-          } else if (index == 2) {
-            // Placeholder for Search functionality
-          } else if (index == 3) {
-            // Stay on ProfileScreen
-          }
-        },
       ),
     );
   }
