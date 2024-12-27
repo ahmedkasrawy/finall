@@ -91,18 +91,46 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/kas.png', height: 200, width: 200),
-              const SizedBox(height: 16),
+              Image.asset(
+                'assets/kas.png',
+                height: 150,
+                width: 150,
+                fit: BoxFit.cover,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                "Welcome Back!",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Log in to your account",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 24),
               // Username or Email Field
               TextField(
                 controller: userEmailController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Username or Email',
-                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.grey.shade200,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide.none,
+                  ),
+                  prefixIcon: Icon(Icons.person, color: Colors.blue.shade800),
                 ),
               ),
               const SizedBox(height: 16),
@@ -110,9 +138,15 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Password',
-                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.grey.shade200,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide.none,
+                  ),
+                  prefixIcon: Icon(Icons.lock, color: Colors.blue.shade800),
                 ),
               ),
               const SizedBox(height: 16),
@@ -128,24 +162,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: ElevatedButton(
                   onPressed: login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: Colors.blue.shade800,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
                   ),
                   child: isLoading
                       ? const CircularProgressIndicator(
                     color: Colors.white,
                   )
                       : const Text(
-                    'Login',
+                    'Log In',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              // Navigate to Signup
               TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -153,11 +190,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     MaterialPageRoute(builder: (context) => SignupScreen()),
                   );
                 },
-                child: const Text(
+                child: Text(
                   'Don’t have an account? Sign up!',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.blue,
+                    color: Colors.blue.shade800,
                     decoration: TextDecoration.underline,
                   ),
                 ),

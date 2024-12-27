@@ -1,5 +1,7 @@
 import 'package:finall/orderConfirmation.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'carBookingScreen.dart';
 
 class CarDetailsScreen extends StatefulWidget {
@@ -21,6 +23,61 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
       _pickUpDate = pickUp;
       _dropOffDate = dropOff;
     });
+  }
+
+  // Save booking to Firebase and navigate to OrderConfirmation screen
+  Future<void> _saveBooking() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('User not logged in!')),
+      );
+      return;
+    }
+
+    if (_pickUpDate == null || _dropOffDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select pick-up and drop-off dates.')),
+      );
+      return;
+    }
+
+    // Calculate the total price based on booking duration
+    final double pricePerDay = widget.car['price'] ?? 0.0;
+    final int days = _dropOffDate!.difference(_pickUpDate!).inDays;
+    final double totalPrice = pricePerDay * (days > 0 ? days : 1); // Ensure at least 1 day
+
+    final bookingDetails = {
+      'carName': '${widget.car['make']} ${widget.car['model']}',
+      'pickUpDate': _pickUpDate!.toIso8601String(),
+      'dropOffDate': _dropOffDate!.toIso8601String(),
+      'price': pricePerDay, // Save price per day
+      'totalPrice': totalPrice, // Save total price
+      'userID': user.uid,
+      'make': widget.car['make'],
+      'model': widget.car['model'],
+    };
+
+    try {
+      // Save booking to Firestore
+      await FirebaseFirestore.instance.collection('bookings').add(bookingDetails);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Booking saved successfully!')),
+      );
+
+      // Navigate to the order confirmation screen with the booking details
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OrderConfirmation(orderDetails: bookingDetails),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save booking.')),
+      );
+    }
   }
 
   @override
@@ -75,11 +132,10 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
                 style: TextStyle(fontSize: 18),
               ),
               Text(
-                'Price per day: \$${price.toStringAsFixed(2)}',
+                'Price: \$${price.toStringAsFixed(2)}',
                 style: TextStyle(fontSize: 18),
               ),
               SizedBox(height: 16),
-              // Embed CarBookingScreen here
               Container(
                 margin: EdgeInsets.symmetric(vertical: 16),
                 padding: EdgeInsets.all(8),
@@ -100,28 +156,7 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
               ),
               SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () {
-                  if (_pickUpDate == null || _dropOffDate == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Please select pick-up and drop-off dates.'),
-                      ),
-                    );
-                    return;
-                  }
-
-                  Navigator.push(context, MaterialPageRoute(builder: (context) {
-                    return OrderConfirmation(
-                      orderDetails: {
-                        'make': widget.car['make'],
-                        'model': widget.car['model'],
-                        'pickUpDate': _pickUpDate!.toIso8601String(),
-                        'dropOffDate': _dropOffDate!.toIso8601String(),
-                        'price_per_day': price,
-                      },
-                    );
-                  }));
-                },
+                onPressed: _saveBooking,
                 style: ElevatedButton.styleFrom(
                   minimumSize: Size(double.infinity, 50),
                   backgroundColor: Colors.blueAccent,

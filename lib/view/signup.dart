@@ -1,8 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-
 import '../emailverify.dart';
 import 'login_screen.dart';
 
@@ -17,10 +15,24 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
-
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  String? errorMessage;
+  bool isLoading = false;
 
   Future<void> signup() async {
+    if (emailController.text.trim().isEmpty ||
+        passwordController.text.trim().isEmpty ||
+        usernameController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = "All fields are required.";
+      });
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
     try {
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
@@ -33,7 +45,7 @@ class _SignupScreenState extends State<SignupScreen> {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'email': emailController.text.trim(),
           'userId': user.uid,
-          'username': usernameController.text.trim(), // Save manually entered username
+          'username': usernameController.text.trim(),
         });
 
         if (!user.emailVerified) {
@@ -58,54 +70,10 @@ class _SignupScreenState extends State<SignupScreen> {
         errorMessage = e.message.toString();
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
-    }
-  }
-
-  Future<void> googleSignUp(BuildContext context) async {
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-      if (googleUser == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Google sign-in canceled.")));
-        return;
-      }
-
-      final GoogleSignInAuthentication? googleAuth = await googleUser.authentication;
-
-      final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth?.accessToken,
-        idToken: googleAuth?.idToken,
-      );
-
-      final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-
-      String username = googleUser.email.split('@')[0];
-      if (username.length > 5) {
-        username = username.substring(0, 5);
-      }
-
-      CollectionReference users = FirebaseFirestore.instance.collection('users');
-      QuerySnapshot usernameSnapshot = await users.where('username', isEqualTo: username).get();
-
-      if (usernameSnapshot.docs.isNotEmpty) {
-        int counter = 1;
-        String originalUsername = username;
-        while (usernameSnapshot.docs.isNotEmpty) {
-          username = '$originalUsername$counter';
-          usernameSnapshot = await users.where('username', isEqualTo: username).get();
-          counter++;
-        }
-      }
-
-      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
-        'email': googleUser.email,
-        'userId': userCredential.user!.uid,
-        'username': username,
+    } finally {
+      setState(() {
+        isLoading = false;
       });
-
-      Navigator.pushReplacementNamed(context, '/home');
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Google sign-up failed: $e")));
     }
   }
 
@@ -129,52 +97,97 @@ class _SignupScreenState extends State<SignupScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Image.asset(
+                'assets/Kas.png',
+                height: 150,
+                fit: BoxFit.cover,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                "Create Account",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade800,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (errorMessage != null)
+                Text(
+                  errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              const SizedBox(height: 16),
+              // Email Field
               TextField(
                 controller: emailController,
-                decoration: const InputDecoration(hintText: 'Enter email', border: OutlineInputBorder()),
+                decoration: InputDecoration(
+                  hintText: 'Enter email',
+                  filled: true,
+                  fillColor: Colors.grey.shade200,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide.none,
+                  ),
+                  prefixIcon: Icon(Icons.email, color: Colors.blue.shade800),
+                ),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
+              // Password Field
               TextField(
                 controller: passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(hintText: 'Enter password', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 16),
-              TextField( // Username Textfield
-                controller: usernameController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter Username',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: 'Enter password',
+                  filled: true,
+                  fillColor: Colors.grey.shade200,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide.none,
+                  ),
+                  prefixIcon: Icon(Icons.lock, color: Colors.blue.shade800),
                 ),
               ),
               const SizedBox(height: 16),
+              // Username Field
+              TextField(
+                controller: usernameController,
+                decoration: InputDecoration(
+                  hintText: 'Enter username',
+                  filled: true,
+                  fillColor: Colors.grey.shade200,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide.none,
+                  ),
+                  prefixIcon: Icon(Icons.person, color: Colors.blue.shade800),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Sign Up Button
               SizedBox(
-                width: 220,
+                width: double.infinity,
                 child: ElevatedButton(
                   onPressed: signup,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: Colors.blue.shade800,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
                   ),
-                  child: const Text('Sign up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: 220,
-                child: ElevatedButton(
-                  onPressed: () {
-                    googleSignUp(context);
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.login),
-                      SizedBox(width: 8),
-                      Text('Sign up with Google'),
-                    ],
+                  child: isLoading
+                      ? const CircularProgressIndicator(
+                    color: Colors.white,
+                  )
+                      : const Text(
+                    'Sign Up',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),

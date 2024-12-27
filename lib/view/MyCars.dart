@@ -9,15 +9,24 @@ class MyCarsScreen extends StatelessWidget {
 
     if (currentUser == null) {
       return Scaffold(
-        appBar: AppBar(title: Text("My Cars")),
+        appBar: AppBar(
+          title: Text("My Cars"),
+          backgroundColor: Colors.blueAccent,
+        ),
         body: Center(
-          child: Text("Please log in to view your cars."),
+          child: Text(
+            "Please log in to view your cars.",
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text("My Cars")),
+      appBar: AppBar(
+        title: Text("My Cars"),
+        backgroundColor: Colors.blueAccent,
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('cars')
@@ -40,29 +49,86 @@ class MyCarsScreen extends StatelessWidget {
           final cars = snapshot.data!.docs;
 
           return ListView.builder(
+            padding: EdgeInsets.all(12),
             itemCount: cars.length,
             itemBuilder: (context, index) {
               final car = cars[index];
               final carData = car.data() as Map<String, dynamic>;
 
               return Card(
-                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  leading: Image.network(
-                    carData['image'] ?? 'https://via.placeholder.com/150',
-                    fit: BoxFit.cover,
-                    width: 60,
-                    height: 60,
-                    errorBuilder: (context, error, stackTrace) =>
-                        Icon(Icons.image_not_supported, size: 60, color: Colors.grey),
-                  ),
-                  title: Text('${carData['make']} ${carData['model']}'),
-                  subtitle: Text('Price: \$${carData['price']}'),
-                  trailing: IconButton(
-                    icon: Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () {
-                      _showEditPriceDialog(context, car.id, carData['price']);
-                    },
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Car Image
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          carData['image'] ?? 'https://via.placeholder.com/150',
+                          height: 80,
+                          width: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      // Car Details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${carData['make']} ${carData['model']}',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Year: ${carData['year']}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            Text(
+                              'Price: \$${carData['price']}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Action Buttons
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () {
+                              _showEditPriceDialog(context, car.id, carData['price']);
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              _confirmDeleteCar(context, car.id);
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -80,12 +146,16 @@ class MyCarsScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Text("Edit Price"),
           content: TextField(
             controller: priceController,
             decoration: InputDecoration(
               labelText: 'New Price',
               prefixIcon: Icon(Icons.attach_money),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             keyboardType: TextInputType.number,
           ),
@@ -113,6 +183,43 @@ class MyCarsScreen extends StatelessWidget {
                 }
               },
               child: Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteCar(BuildContext context, String carId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: Text("Delete Car"),
+          content: Text("Are you sure you want to delete this car?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await FirebaseFirestore.instance.collection('cars').doc(carId).delete();
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Car deleted successfully!")),
+                  );
+                } catch (e) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Failed to delete car: $e")),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: Text("Delete"),
             ),
           ],
         );

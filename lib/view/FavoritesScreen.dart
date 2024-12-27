@@ -97,12 +97,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 // Filter favorites based on search query
                 final favoriteCars = snapshot.data!.docs.where((doc) {
                   final car = doc.data() as Map<String, dynamic>;
-                  final name = car['name']?.toLowerCase() ?? '';
-                  final modelYear = car['modelYear']?.toString().toLowerCase() ?? '';
-                  final price = car['price']?.toString().toLowerCase() ?? '';
-                  return name.contains(_searchQuery) ||
-                      modelYear.contains(_searchQuery) ||
-                      price.contains(_searchQuery);
+                  final make = car['make']?.toLowerCase() ?? '';
+                  final model = car['model']?.toLowerCase() ?? '';
+                  final year = car['year']?.toString().toLowerCase() ?? '';
+                  return make.contains(_searchQuery) ||
+                      model.contains(_searchQuery) ||
+                      year.contains(_searchQuery);
                 }).toList();
 
                 if (favoriteCars.isEmpty) {
@@ -139,11 +139,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           MaterialPageRoute(
                             builder: (context) => CarDetailsScreen(car: {
                               'id': favoriteCars[index].id,
-                              'name': car['name'],
                               'make': car['make'],
                               'model': car['model'],
-                              'modelYear': car['modelYear'],
-                              'price': car['price'], // Pass the price from Firestore
+                              'year': car['year'],
+                              'price': car['price'],
                               'image': car['image'],
                             }),
                           ),
@@ -181,7 +180,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    car['name'] ?? 'Unknown Car',
+                                    '${car['make']} ${car['model']}' ?? 'Unknown Car',
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -192,7 +191,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                   ),
                                   SizedBox(height: 4),
                                   Text(
-                                    'Year: ${car['modelYear'] ?? 'N/A'}',
+                                    'Year: ${car['year'] ?? 'N/A'}',
                                     style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                                   ),
                                   Text(

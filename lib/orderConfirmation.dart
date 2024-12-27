@@ -24,7 +24,7 @@ class _OrderConfirmationState extends State<OrderConfirmation> {
 
   /// Calculate total price based on price_per_day and booking duration
   void _calculateTotalPrice() {
-    final pricePerDay = widget.orderDetails['price_per_day'] ?? 0.0;
+    final pricePerDay = widget.orderDetails['price'] ?? 0.0;
 
     final pickUpDate = DateTime.parse(widget.orderDetails['pickUpDate']);
     final dropOffDate = DateTime.parse(widget.orderDetails['dropOffDate']);
@@ -134,7 +134,7 @@ class _OrderConfirmationState extends State<OrderConfirmation> {
                     style: TextStyle(fontSize: 18, color: Colors.grey[700]),
                   ),
                   Text(
-                    'Price per Day: \$${orderDetails['price_per_day']}',
+                    'Price per Day: \$${orderDetails['price']}',
                     style: TextStyle(fontSize: 18, color: Colors.grey[700]),
                   ),
                   SizedBox(height: 8.0),

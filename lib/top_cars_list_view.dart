@@ -57,23 +57,18 @@ class _TopCarsListViewState extends State<TopCarsListView> {
   }
 
   Widget buildImage(String imagePath) {
-    if (imagePath.startsWith('http')) {
-      return Image.network(
-        imagePath,
+    return Image.network(
+      imagePath,
+      height: 80,
+      width: 80,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Image.asset(
+        'assets/kisooo.png',
         height: 80,
         width: 80,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
-            Image.asset('assets/kisooo.png', height: 80, width: 80, fit: BoxFit.cover),
-      );
-    } else {
-      return Image.asset(
-        imagePath,
-        height: 80,
-        width: 80,
-        fit: BoxFit.cover,
-      );
-    }
+      ),
+    );
   }
 
   @override
