@@ -30,18 +30,18 @@ class _TopCarsListViewState extends State<TopCarsListView> {
       // Remove from favorites
       await favoritesRef.doc(car['id']).delete();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${car['name']} removed from favorites!')),
+        SnackBar(content: Text('${car['name'] ?? 'Car'} removed from favorites!')),
       );
     } else {
       // Add to favorites
       await favoritesRef.doc(car['id']).set({
-        'name': car['name'] ?? '${car['make']} ${car['model']}',
-        'image': car['image'],
-        'price': car['price'] ?? 'N/A',
-        'modelYear': car['year'] ?? 'N/A',
+        'name': car['name'] ?? '${car['make'] ?? 'Unknown'} ${car['model'] ?? 'Car'}',
+        'image': car['image'] ?? '', // Provide empty string as fallback
+        'price': car['price'] ?? 'N/A', // Default to 'N/A' if null
+        'modelYear': car['year'] ?? 'N/A', // Default to 'N/A' if null
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${car['name']} added to favorites!')),
+        SnackBar(content: Text('${car['name'] ?? 'Car'} added to favorites!')),
       );
     }
 
@@ -49,6 +49,7 @@ class _TopCarsListViewState extends State<TopCarsListView> {
       _favorites[index] = !(carDoc.exists); // Toggle the favorite state
     });
   }
+
 
   @override
   Widget build(BuildContext context) {

@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'bottom.dart';
+
 class FavoritesScreen extends StatelessWidget {
   final currentUser = FirebaseAuth.instance.currentUser;
 
   @override
   Widget build(BuildContext context) {
     if (currentUser == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Favorites'),
-        ),
-        body: const Center(
+      return MainScaffold(
+        selectedIndex: 1, // Highlight the Favorites tab
+        child: const Center(
           child: Text(
             'Please log in to see your favorites',
             style: TextStyle(fontSize: 16, color: Colors.grey),
@@ -21,12 +21,9 @@ class FavoritesScreen extends StatelessWidget {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Favorites'),
-        backgroundColor: Colors.blueAccent,
-      ),
-      body: StreamBuilder<QuerySnapshot>(
+    return MainScaffold(
+      selectedIndex: 1, // Highlight the Favorites tab
+      child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('favorites')
             .doc(currentUser!.uid)
@@ -54,6 +51,12 @@ class FavoritesScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final car = favoriteCars[index].data() as Map<String, dynamic>;
 
+              // Fallback values for null fields
+              final carName = car['name'] ?? 'Unknown Car';
+              final carImage = car['image'] ?? ''; // Empty string for missing image
+              final carYear = car['modelYear'] ?? 'N/A';
+              final carPrice = car['price'] ?? 'N/A';
+
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
                 elevation: 4,
@@ -64,20 +67,31 @@ class FavoritesScreen extends StatelessWidget {
                   contentPadding: const EdgeInsets.all(10),
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      car['image'],
+                    child: carImage.isNotEmpty
+                        ? Image.network(
+                      carImage,
                       width: 70,
                       height: 70,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
+                      errorBuilder: (context, error, stackTrace) =>
+                      const Icon(
                         Icons.car_rental,
                         size: 50,
+                        color: Colors.grey,
+                      ),
+                    )
+                        : Container(
+                      width: 70,
+                      height: 70,
+                      color: Colors.grey[300],
+                      child: const Icon(
+                        Icons.image_not_supported,
                         color: Colors.grey,
                       ),
                     ),
                   ),
                   title: Text(
-                    car['name'],
+                    carName,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -88,20 +102,19 @@ class FavoritesScreen extends StatelessWidget {
                     children: [
                       const SizedBox(height: 4),
                       Text(
-                        'Year: ${car['modelYear']}',
+                        'Year: $carYear',
                         style: const TextStyle(
                           fontSize: 14,
                           color: Colors.grey,
                         ),
                       ),
-                      if (car.containsKey('price'))
-                        Text(
-                          'Price: \$${car['price']}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
+                      Text(
+                        'Price: $carPrice',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
                         ),
+                      ),
                     ],
                   ),
                   trailing: IconButton(

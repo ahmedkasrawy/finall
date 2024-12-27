@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class CarSearchService {
   final String baseUrl = 'https://mc-api.marketcheck.com/v2/';
-  final String apiKey = 'AZAzKrssl3SdDJ2RZCN1oXVRc67sPr0t';
+  final String apiKey = 'L7B7776KRfDuyGB31ugyHbJhk1u7uBsL';
 
   /// Fetch vehicles by make and model
   Future<List<Map<String, dynamic>>> fetchVehiclesByMakeAndModel(String make, String model) async {

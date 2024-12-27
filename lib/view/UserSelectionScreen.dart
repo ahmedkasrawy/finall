@@ -1,7 +1,8 @@
-import 'package:finall/view/ChatScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'ChatScreen.dart';
+import 'bottom.dart';
 
 class UserSelectionScreen extends StatefulWidget {
   @override
@@ -17,16 +18,15 @@ class _UserSelectionScreenState extends State<UserSelectionScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
-      return Scaffold(
-        body: Center(child: Text("Please log in to use the chat feature.")),
+      return MainScaffold(
+        selectedIndex: 3,
+        child: Center(child: Text("Please log in to use the chat feature.")),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Select User to Chat'),
-      ),
-      body: Column(
+    return MainScaffold(
+      selectedIndex: 3,
+      child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),

@@ -6,7 +6,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 
+import 'bottom.dart';
+
 class AddCarScreen extends StatefulWidget {
+  const AddCarScreen({Key? key}) : super(key: key);
+
   @override
   _AddCarScreenState createState() => _AddCarScreenState();
 }
@@ -139,11 +143,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Add Car'),
-      ),
-      body: Stack(
+    return MainScaffold(
+      selectedIndex: 2, // Highlight the Add Car tab in the bottom navigation bar
+      child: Stack(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -169,59 +171,59 @@ class _AddCarScreenState extends State<AddCarScreen> {
                         child: Icon(Icons.image, size: 50, color: Colors.grey[600]),
                       ),
                     ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Center(
                     child: ElevatedButton.icon(
                       onPressed: _pickImage,
-                      icon: Icon(Icons.add_photo_alternate),
-                      label: Text('Add Photo'),
+                      icon: const Icon(Icons.add_photo_alternate),
+                      label: const Text('Add Photo'),
                     ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: _makeController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Car Make',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.directions_car),
                     ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: _modelController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Car Model',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.drive_eta),
                     ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: _yearController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Year',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.calendar_today),
                     ),
                     keyboardType: TextInputType.number,
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: _priceController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Price',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.attach_money),
                     ),
                     keyboardType: TextInputType.number,
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   Center(
                     child: ElevatedButton(
                       onPressed: _saveCar,
-                      child: Text('Save Car'),
+                      child: const Text('Save Car'),
                       style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -240,11 +242,11 @@ class _AddCarScreenState extends State<AddCarScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
                       Text(
                         'Uploading: ${_uploadProgress.toStringAsFixed(0)}%',
-                        style: TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ],
                   ),
