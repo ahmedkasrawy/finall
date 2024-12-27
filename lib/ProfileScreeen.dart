@@ -1,3 +1,4 @@
+import 'package:finall/view/MyCars.dart';
 import 'package:finall/view/login_screen.dart';
 import 'package:finall/view/mainlayout.dart';
 import 'package:finall/view/mybookingscreen.dart';
@@ -5,10 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../mytransactions.dart';
 import '../settings.dart';
 import '../wallet.dart';
-
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -139,12 +138,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               _buildProfileOption(
                 context,
-                label: 'My Transactions',
-                icon: Icons.handshake_rounded,
+                label: 'My Cars', // Replacing "My Transactions"
+                icon: Icons.directions_car,
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => MyTransactions()),
+                    MaterialPageRoute(builder: (context) => MyCarsScreen()),
                   );
                 },
               ),

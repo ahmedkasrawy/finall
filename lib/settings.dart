@@ -1,8 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'ProfileScreeen.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
+  @override
+  _SettingsScreenState createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  String? username;
+  String? email;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserDetails();
+  }
+
+  Future<void> _fetchUserDetails() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        setState(() {
+          username = userDoc.data()?['username'] ?? 'No Name';
+          email = user.email ?? 'No Email';
+        });
+      } catch (e) {
+        print('Error fetching user details: $e');
+        setState(() {
+          username = 'No Name';
+          email = 'No Email';
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,10 +93,10 @@ class SettingsScreen extends StatelessWidget {
           child: Icon(Icons.person, color: Colors.white),
         ),
         title: Text(
-          'John Doe',
+          username ?? 'Loading...',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        subtitle: Text('john.doe@example.com'),
+        subtitle: Text(email ?? 'Loading...'),
         tileColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
