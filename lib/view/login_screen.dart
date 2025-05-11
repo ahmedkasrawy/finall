@@ -14,20 +14,18 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController userEmailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  String? errorMessage;
   bool isLoading = false;
 
   Future<void> login() async {
     if (userEmailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
-      setState(() {
-        errorMessage = "Both fields are required.";
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Both fields are required.")),
+      );
       return;
     }
 
     setState(() {
       isLoading = true;
-      errorMessage = null;
     });
 
     final String userInput = userEmailController.text.trim();
@@ -36,7 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       String emailToLogin = userInput;
 
-      // If input is not an email, treat it as a username
       if (!userInput.contains('@')) {
         final userQuery = await FirebaseFirestore.instance
             .collection('users')
@@ -50,38 +47,44 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
 
-        emailToLogin = userQuery.docs.first.data()['email'];
+        emailToLogin = userQuery.docs.first.data()['email'] as String;
       }
 
-      // Authenticate with Firebase using email
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailToLogin,
         password: password,
       );
 
-      // Navigate to the home screen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
-      );
+      if (userCredential.user != null) {
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+        );
+      }
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        if (e.code == 'user-not-found') {
-          errorMessage = "No user found for this email or username.";
-        } else if (e.code == 'wrong-password') {
-          errorMessage = "Incorrect password. Please try again.";
-        } else {
-          errorMessage = "An error occurred: ${e.message}";
-        }
-      });
+      String errorMessage = "An error occurred.";
+      if (e.code == 'user-not-found') {
+        errorMessage = "No user found for this email or username.";
+      } else if (e.code == 'wrong-password') {
+        errorMessage = "Incorrect password. Please try again.";
+      } else {
+        errorMessage = "An error occurred: ${e.message}";
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
     } catch (e) {
-      setState(() {
-        errorMessage = "An error occurred: ${e.toString()}";
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("An error occurred: ${e.toString()}")),
+      );
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -100,6 +103,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 150,
                 width: 150,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.error_outline,
+                    size: 150,
+                    color: Colors.red,
+                  );
+                },
               ),
               const SizedBox(height: 24),
               Text(
@@ -119,7 +129,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              // Username or Email Field
               TextField(
                 controller: userEmailController,
                 decoration: InputDecoration(
@@ -134,7 +143,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Password Field
               TextField(
                 controller: passwordController,
                 obscureText: true,
@@ -150,13 +158,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              if (errorMessage != null)
-                Text(
-                  errorMessage!,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              const SizedBox(height: 16),
-              // Login Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -169,9 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   child: isLoading
-                      ? const CircularProgressIndicator(
-                    color: Colors.white,
-                  )
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                     'Log In',
                     style: TextStyle(
@@ -191,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   );
                 },
                 child: Text(
-                  'Don’t have an account? Sign up!',
+                  'Don\u2019t have an account? Sign up!',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.blue.shade800,

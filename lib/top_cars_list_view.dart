@@ -33,13 +33,31 @@ class _TopCarsListViewState extends State<TopCarsListView> {
     if (carDoc.exists) {
       // Remove from favorites
       await favoritesRef.doc(car['id']).delete();
-      Fluttertoast.showToast(
-        msg: '${car['name'] ?? 'Car'} removed from favorites!',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.black87,
-        textColor: Colors.white,
-        fontSize: 16.0,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 200),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.favorite_border, color: Colors.red, size: 16),
+                  SizedBox(width: 8),
+                  Text(
+                    '${car['name'] ?? 'Car'} removed from favorites',
+                    style: TextStyle(color: Colors.black87, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          backgroundColor: Colors.white,
+          duration: Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
       );
     } else {
       // Add to favorites
@@ -49,16 +67,34 @@ class _TopCarsListViewState extends State<TopCarsListView> {
         'make': car['make'] ?? 'N/A',
         'model': car['model'] ?? 'N/A',
         'year': car['year'] ?? 'N/A',
-        'price': car['price'] ?? (500 + _random.nextInt(9500)),
+        'price': car['price'] ?? (500 + _random.nextInt(4501)), // Random price between 500 and 5,000 EGP per day
         'image': car['image'] ?? 'https://via.placeholder.com/150',
       });
-      Fluttertoast.showToast(
-        msg: '${car['name'] ?? 'Car'} added to favorites!',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.blueAccent,
-        textColor: Colors.white,
-        fontSize: 16.0,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 200),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.favorite, color: Colors.red, size: 16),
+                  SizedBox(width: 8),
+                  Text(
+                    '${car['name'] ?? 'Car'} added to favorites',
+                    style: TextStyle(color: Colors.black87, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          backgroundColor: Colors.white,
+          duration: Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
       );
     }
 
@@ -90,31 +126,34 @@ class _TopCarsListViewState extends State<TopCarsListView> {
         final car = widget.topCars[index];
 
         // Assign a random price if not already set
-        car['price'] ??= 500 + _random.nextInt(9500);
+        car['price'] ??= 500 + _random.nextInt(4501); // Random price between 500 and 5,000 EGP per day
 
         final isFavorite = _favorites[index] ?? false;
 
-        return GestureDetector(
-          onTap: () => widget.onCarTap(car),
-          child: Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            elevation: 6,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Car Image
-                  ClipRRect(
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Car Image
+                GestureDetector(
+                  onTap: () => widget.onCarTap(car),
+                  child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: buildImage(car['image']),
                   ),
-                  const SizedBox(width: 16),
-                  // Car Details
-                  Expanded(
+                ),
+                const SizedBox(width: 16),
+                // Car Details
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => widget.onCarTap(car),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -139,7 +178,7 @@ class _TopCarsListViewState extends State<TopCarsListView> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Price: \$${car['price']}',
+                          'Price: ${car['price']} EGP/day',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -149,17 +188,17 @@ class _TopCarsListViewState extends State<TopCarsListView> {
                       ],
                     ),
                   ),
-                  // Favorite Icon
-                  IconButton(
-                    onPressed: () => _toggleFavorite(car, index),
-                    icon: Icon(
-                      isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: isFavorite ? Colors.red : Colors.grey,
-                    ),
-                    tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                ),
+                // Favorite Icon
+                IconButton(
+                  onPressed: () => _toggleFavorite(car, index),
+                  icon: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: isFavorite ? Colors.red : Colors.grey,
                   ),
-                ],
-              ),
+                  tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                ),
+              ],
             ),
           ),
         );

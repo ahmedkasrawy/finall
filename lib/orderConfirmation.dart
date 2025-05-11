@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class OrderConfirmation extends StatefulWidget {
   final Map<String, dynamic> orderDetails;
@@ -14,12 +15,16 @@ class OrderConfirmation extends StatefulWidget {
 class _OrderConfirmationState extends State<OrderConfirmation> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late double totalPrice;
+  late double discountedPrice;
+  late double discountAmount;
+  late double discountPercentage;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _calculateTotalPrice();
-    _saveOrderToFirestore();
+    _calculateDiscount();
   }
 
   /// Calculate total price based on price_per_day and booking duration
@@ -33,12 +38,72 @@ class _OrderConfirmationState extends State<OrderConfirmation> {
     totalPrice = pricePerDay * (days > 0 ? days : 1); // Ensure at least 1 day
   }
 
-  Future<void> _saveOrderToFirestore() async {
+  Future<void> _calculateDiscount() async {
     try {
-      // Add the totalPrice to the order details
-      widget.orderDetails['totalPrice'] = totalPrice;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() {
+          discountedPrice = totalPrice;
+          discountAmount = 0;
+          discountPercentage = 0;
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Get user's wallet to check K-Points
+      final walletDoc = await _firestore.collection('wallets').doc(user.uid).get();
+      if (!walletDoc.exists) {
+        setState(() {
+          discountedPrice = totalPrice;
+          discountAmount = 0;
+          discountPercentage = 0;
+          isLoading = false;
+        });
+        return;
+      }
+
+      final kPoints = walletDoc.data()?['kPoints'] ?? 0;
+
+      // Calculate discount based on K-Points level
+      if (kPoints >= 1000) {
+        discountPercentage = 0.15; // Platinum: 15% discount
+      } else if (kPoints >= 500) {
+        discountPercentage = 0.10; // Gold: 10% discount
+      } else if (kPoints >= 100) {
+        discountPercentage = 0.05; // Silver: 5% discount
+      } else {
+        discountPercentage = 0.0; // Bronze: No discount
+      }
+
+      discountAmount = totalPrice * discountPercentage;
+      discountedPrice = totalPrice - discountAmount;
+
+      // Add the discounted price to the order details
+      widget.orderDetails['totalPrice'] = discountedPrice;
+      widget.orderDetails['originalPrice'] = totalPrice;
+      widget.orderDetails['discountAmount'] = discountAmount;
+      widget.orderDetails['discountPercentage'] = discountPercentage;
 
       // Save the order details to Firestore
+      await _saveOrderToFirestore();
+
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error calculating discount: $e');
+      setState(() {
+        discountedPrice = totalPrice;
+        discountAmount = 0;
+        discountPercentage = 0;
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveOrderToFirestore() async {
+    try {
       await _firestore.collection('orders').add(widget.orderDetails);
 
       // Show a success message
@@ -57,6 +122,14 @@ class _OrderConfirmationState extends State<OrderConfirmation> {
   @override
   Widget build(BuildContext context) {
     final orderDetails = widget.orderDetails;
+
+    if (isLoading) {
+      return Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.grey[200],
@@ -134,20 +207,58 @@ class _OrderConfirmationState extends State<OrderConfirmation> {
                     style: TextStyle(fontSize: 18, color: Colors.grey[700]),
                   ),
                   Text(
-                    'Price per Day: \$${orderDetails['price']}',
+                    'Price per Day: ${orderDetails['price']} EGP',
                     style: TextStyle(fontSize: 18, color: Colors.grey[700]),
                   ),
                   SizedBox(height: 8.0),
                   Divider(color: Colors.grey),
                   SizedBox(height: 8.0),
+                  // Payment Details
                   Text(
-                    'Total Price: \$${totalPrice.toStringAsFixed(2)}',
+                    'Payment Details',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
                     ),
                   ),
+                  SizedBox(height: 8.0),
+                  Text(
+                    'Original Price: ${totalPrice.toStringAsFixed(2)} EGP',
+                    style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                  ),
+                  if (discountPercentage > 0) ...[
+                    Text(
+                      'Discount (${(discountPercentage * 100).toInt()}%): -${discountAmount.toStringAsFixed(2)} EGP',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8.0),
+                  ],
+                  Text(
+                    'Final Amount: ${discountedPrice.toStringAsFixed(2)} EGP',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  if (orderDetails['confirmationType'] != null) ...[
+                    SizedBox(height: 8.0),
+                    Divider(color: Colors.grey),
+                    SizedBox(height: 8.0),
+                    Text(
+                      'Payment Method: ${orderDetails['confirmationType']}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueAccent,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

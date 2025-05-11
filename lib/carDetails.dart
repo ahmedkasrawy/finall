@@ -1,8 +1,12 @@
 import 'package:finall/orderConfirmation.dart';
+import 'package:finall/view/bnpl.dart';
+import 'package:finall/view/escrowScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'carBookingScreen.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:intl/intl.dart';
 
 class CarDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> car;
@@ -92,81 +96,245 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
         backgroundColor: Colors.grey[200],
         title: Text(carName),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (widget.car['image'] != null)
-                Center(
-                  child: Image.network(
-                    widget.car['image'],
-                    height: 200,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Image.asset(
-                        'assets/kisooo.png',
-                        height: 200,
-                        fit: BoxFit.cover,
-                      );
-                    },
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.car['image'] != null)
+                  Center(
+                    child: Image.network(
+                      widget.car['image'],
+                      height: 200,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.asset(
+                          'assets/kisooo.png',
+                          height: 200,
+                          fit: BoxFit.cover,
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                Text(
+                  carName,
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Make: ${widget.car['make'] ?? 'N/A'}',
+                  style: const TextStyle(fontSize: 18),
+                ),
+                Text(
+                  'Model: ${widget.car['model'] ?? 'N/A'}',
+                  style: const TextStyle(fontSize: 18),
+                ),
+                Text(
+                  'Year: ${widget.car['year'] ?? 'N/A'}',
+                  style: const TextStyle(fontSize: 18),
+                ),
+                Text(
+                  'Price',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
                   ),
                 ),
-              SizedBox(height: 16),
-              Text(
-                carName,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Make: ${widget.car['make'] ?? 'N/A'}',
-                style: TextStyle(fontSize: 18),
-              ),
-              Text(
-                'Model: ${widget.car['model'] ?? 'N/A'}',
-                style: TextStyle(fontSize: 18),
-              ),
-              Text(
-                'Year: ${widget.car['year'] ?? 'N/A'}',
-                style: TextStyle(fontSize: 18),
-              ),
-              Text(
-                'Price: \$${price.toStringAsFixed(2)}',
-                style: TextStyle(fontSize: 18),
-              ),
-              SizedBox(height: 16),
-              Container(
-                margin: EdgeInsets.symmetric(vertical: 16),
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.shade400,
-                      blurRadius: 4.0,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                Text(
+                  '${price.toStringAsFixed(2)} EGP/day',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
                 ),
-                child: CarBookingScreen(
-                  onDatesConfirmed: _updateBookingDates, // Pass callback
+                const SizedBox(height: 16),
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.shade400,
+                        blurRadius: 4.0,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: CarBookingScreen(
+                    onDatesConfirmed: _updateBookingDates,
+                    initialPickUpDate: _pickUpDate,
+                    initialDropOffDate: _dropOffDate,
+                  ),
                 ),
-              ),
-              SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _saveBooking,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: Size(double.infinity, 50),
-                  backgroundColor: Colors.blueAccent,
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _pickUpDate == null || _dropOffDate == null ? null : _saveBooking,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    backgroundColor: Colors.blueAccent,
+                  ),
+                  child: const Text(
+                    'Book Now',
+                    style: TextStyle(fontSize: 20, color: Colors.white),
+                  ),
                 ),
-                child: Text(
-                  'Book Now',
-                  style: TextStyle(fontSize: 20, color: Colors.white),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: (_pickUpDate == null || _dropOffDate == null)
+                      ? null
+                      : () {
+                          final int days = _dropOffDate!.difference(_pickUpDate!).inDays;
+                          final double totalPrice = (widget.car['price'] ?? 0.0) * (days > 0 ? days : 1);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => BnplPlanSelectionScreen(
+                                car: widget.car,
+                                pickUpDate: _pickUpDate!,
+                                dropOffDate: _dropOffDate!,
+                                totalPrice: totalPrice,
+                              ),
+                            ),
+                          );
+                        },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    backgroundColor: Colors.orangeAccent,
+                  ),
+                  child: const Text(
+                    'Buy Now, Pay Later!',
+                    style: TextStyle(fontSize: 20, color: Colors.white),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: (_pickUpDate == null || _dropOffDate == null)
+                      ? null
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => EscrowScreen(
+                                car: widget.car,
+                                pickUpDate: _pickUpDate!,
+                                dropOffDate: _dropOffDate!,
+                              ),
+                            ),
+                          );
+                        },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    backgroundColor: Colors.black87,
+                  ),
+                  child: const Text(
+                    'Secure with Escrow',
+                    style: TextStyle(fontSize: 20, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Add Discount Info Card
+                FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('wallets')
+                      .doc(FirebaseAuth.instance.currentUser?.uid)
+                      .get(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator();
+                    }
+
+                    final kPoints = snapshot.data?.get('kPoints') ?? 0;
+                    double discountPercentage = 0.0;
+                    String levelName = 'Bronze';
+
+                    if (kPoints >= 1000) {
+                      discountPercentage = 0.15;
+                      levelName = 'Platinum';
+                    } else if (kPoints >= 500) {
+                      discountPercentage = 0.10;
+                      levelName = 'Gold';
+                    } else if (kPoints >= 100) {
+                      discountPercentage = 0.05;
+                      levelName = 'Silver';
+                    }
+
+                    final pricePerDay = widget.car['price'] ?? 0.0;
+                    final discountAmount = pricePerDay * discountPercentage;
+                    final discountedPrice = pricePerDay - discountAmount;
+
+                    return Card(
+                      elevation: 4,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Your Discount',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blueAccent,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Level: $levelName',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            Text(
+                              'K-Points: $kPoints',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            if (discountPercentage > 0) ...[
+                              SizedBox(height: 8),
+                              Text(
+                                'Discount: ${(discountPercentage * 100).toInt()}%',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Discounted Price: ${discountedPrice.toStringAsFixed(2)} EGP/day',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Total Price',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  '${(widget.car['price'] ?? 0.0 * (_dropOffDate!.difference(_pickUpDate!).inDays > 0 ? _dropOffDate!.difference(_pickUpDate!).inDays : 1)).toStringAsFixed(0)} EGP',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

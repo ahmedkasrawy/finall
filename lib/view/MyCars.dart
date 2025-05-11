@@ -95,17 +95,11 @@ class MyCarsScreen extends StatelessWidget {
                             SizedBox(height: 8),
                             Text(
                               'Year: ${carData['year']}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[700],
-                              ),
+                              style: TextStyle(fontSize: 14),
                             ),
                             Text(
-                              'Price: \$${carData['price']}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[700],
-                              ),
+                              'Price: ${carData['price']} EGP/day',
+                              style: TextStyle(fontSize: 14, color: Colors.green),
                             ),
                           ],
                         ),
@@ -150,14 +144,11 @@ class MyCarsScreen extends StatelessWidget {
           title: Text("Edit Price"),
           content: TextField(
             controller: priceController,
-            decoration: InputDecoration(
-              labelText: 'New Price',
-              prefixIcon: Icon(Icons.attach_money),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
             keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'New Price (EGP)',
+              prefixText: 'EGP ',
+            ),
           ),
           actions: [
             TextButton(
@@ -174,11 +165,43 @@ class MyCarsScreen extends StatelessWidget {
                       .update({'price': newPrice});
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Price updated successfully!")),
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.green),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "Price updated successfully!",
+                              style: TextStyle(color: Colors.black87),
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: Colors.white,
+                      duration: Duration(seconds: 3),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Invalid price.")),
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "Invalid price.",
+                              style: TextStyle(color: Colors.black87),
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: Colors.white,
+                      duration: Duration(seconds: 3),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
               },
@@ -209,12 +232,44 @@ class MyCarsScreen extends StatelessWidget {
                   await FirebaseFirestore.instance.collection('cars').doc(carId).delete();
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Car deleted successfully!")),
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.green),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "Car deleted successfully!",
+                              style: TextStyle(color: Colors.black87),
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: Colors.white,
+                      duration: Duration(seconds: 3),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 } catch (e) {
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Failed to delete car: $e")),
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "Failed to delete car: $e",
+                              style: TextStyle(color: Colors.black87),
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: Colors.white,
+                      duration: Duration(seconds: 3),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
               },

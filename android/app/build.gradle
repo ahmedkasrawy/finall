@@ -18,12 +18,12 @@ def flutterVersionName = localProperties.getProperty("flutter.versionName", "1.0
 android {
     namespace = "com.example.finall"
     compileSdk = flutter.compileSdkVersion
-    compileSdkVersion 33 // Use the latest version available
-    targetSdkVersion 33 // Use the latest version available
+    compileSdkVersion 29 // Use the latest version available
+    targetSdkVersion 29 // Use the latest version available
 
 
     defaultConfig {
-        applicationId = "com.example.finall"
+        applicationId = java"com.example.finall"
         minSdkVersion 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode

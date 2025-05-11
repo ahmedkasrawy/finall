@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../emailverify.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'homescreen.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -15,25 +16,29 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
-  String? errorMessage;
   bool isLoading = false;
 
   Future<void> signup() async {
     if (emailController.text.trim().isEmpty ||
         passwordController.text.trim().isEmpty ||
         usernameController.text.trim().isEmpty) {
-      setState(() {
-        errorMessage = "All fields are required.";
-      });
+      Fluttertoast.showToast(
+        msg: "All fields are required.",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
       return;
     }
 
     setState(() {
       isLoading = true;
-      errorMessage = null;
     });
 
     try {
+      // Create user with email and password
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
         email: emailController.text.trim(),
@@ -42,21 +47,30 @@ class _SignupScreenState extends State<SignupScreen> {
 
       User? user = userCredential.user;
       if (user != null) {
+        // Save user data to Firestore
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'email': emailController.text.trim(),
           'userId': user.uid,
           'username': usernameController.text.trim(),
         });
 
-        if (!user.emailVerified) {
-          await user.sendEmailVerification();
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const EmailVerificationScreen(),
-            ),
-          );
-        }
+        // Show success message
+        Fluttertoast.showToast(
+          msg: "Account created successfully!",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+
+        // Navigate directly to home screen
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+          (route) => false,
+        );
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage = "Signup failed.";
@@ -69,11 +83,20 @@ class _SignupScreenState extends State<SignupScreen> {
       } else {
         errorMessage = e.message.toString();
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
+      Fluttertoast.showToast(
+        msg: errorMessage,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -111,12 +134,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   color: Colors.blue.shade800,
                 ),
               ),
-              const SizedBox(height: 16),
-              if (errorMessage != null)
-                Text(
-                  errorMessage!,
-                  style: const TextStyle(color: Colors.red),
-                ),
               const SizedBox(height: 16),
               // Email Field
               TextField(
@@ -164,7 +181,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   prefixIcon: Icon(Icons.person, color: Colors.blue.shade800),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               // Sign Up Button
               SizedBox(
                 width: double.infinity,

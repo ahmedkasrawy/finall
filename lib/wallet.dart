@@ -1,6 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:finall/view/chatbot.dart';
+
+class KPointsLevel {
+  final String name;
+  final int minPoints;
+  final double discount;
+  final Color color;
+
+  const KPointsLevel({
+    required this.name,
+    required this.minPoints,
+    required this.discount,
+    required this.color,
+  });
+}
 
 class PaymentPage extends StatefulWidget {
   @override
@@ -9,6 +25,55 @@ class PaymentPage extends StatefulWidget {
 
 class _PaymentPageState extends State<PaymentPage> {
   final _formKey = GlobalKey<FormState>();
+  double _balance = 0.0;
+  int _kPoints = 0;
+  List<Map<String, dynamic>> _transactions = [];
+  bool _isLoading = true;
+
+  final List<KPointsLevel> kPointsLevels = const [
+    KPointsLevel(
+      name: 'Bronze',
+      minPoints: 0,
+      discount: 0.0,
+      color: Colors.brown,
+    ),
+    KPointsLevel(
+      name: 'Silver',
+      minPoints: 100,
+      discount: 0.05, // 5% discount
+      color: Colors.grey,
+    ),
+    KPointsLevel(
+      name: 'Gold',
+      minPoints: 500,
+      discount: 0.10, // 10% discount
+      color: Colors.amber,
+    ),
+    KPointsLevel(
+      name: 'Platinum',
+      minPoints: 1000,
+      discount: 0.15, // 15% discount
+      color: Colors.purple,
+    ),
+  ];
+
+  KPointsLevel get currentLevel {
+    for (var i = kPointsLevels.length - 1; i >= 0; i--) {
+      if (_kPoints >= kPointsLevels[i].minPoints) {
+        return kPointsLevels[i];
+      }
+    }
+    return kPointsLevels.first;
+  }
+
+  int get pointsToNextLevel {
+    for (var level in kPointsLevels) {
+      if (_kPoints < level.minPoints) {
+        return level.minPoints - _kPoints;
+      }
+    }
+    return 0;
+  }
 
   String cardNumber = '';
   String cardHolder = '';
@@ -20,7 +85,194 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   void initState() {
     super.initState();
-    _loadPaymentDetails(); // Load saved payment details when the screen initializes
+    _loadWalletData();
+    _loadPaymentDetails();
+  }
+
+  Future<void> _loadWalletData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final walletDoc = await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(user.uid)
+          .get();
+
+      final transactionsSnapshot = await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(user.uid)
+          .collection('transactions')
+          .orderBy('timestamp', descending: true)
+          .limit(10)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          if (walletDoc.exists) {
+            final data = walletDoc.data() as Map<String, dynamic>;
+            _balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
+            _kPoints = (data['kPoints'] as num?)?.toInt() ?? 0;
+          } else {
+            _balance = 0.0;
+            _kPoints = 0;
+          }
+          _transactions = transactionsSnapshot.docs
+              .map((doc) => doc.data() as Map<String, dynamic>)
+              .toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading wallet data: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Widget _buildKPointsCard() {
+    final nextLevel = _kPoints < kPointsLevels.last.minPoints
+        ? kPointsLevels.firstWhere((level) => _kPoints < level.minPoints)
+        : null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.stars, color: currentLevel.color),
+                const SizedBox(width: 8),
+                Text(
+                  'K-Points Level: ${currentLevel.name}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: currentLevel.color,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '$_kPoints Points',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (currentLevel.discount > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Current Discount: ${(currentLevel.discount * 100).toInt()}%',
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            if (nextLevel != null) ...[
+              const SizedBox(height: 16),
+              LinearProgressIndicator(
+                value: _kPoints / nextLevel.minPoints,
+                backgroundColor: Colors.grey[200],
+                valueColor: AlwaysStoppedAnimation<Color>(nextLevel.color),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${nextLevel.minPoints - _kPoints} points to ${nextLevel.name} level',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionItem(Map<String, dynamic> transaction) {
+    final isPositive = transaction['amount'] > 0;
+    final hasPoints = transaction['kPoints'] != null;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: isPositive ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+          child: Icon(
+            isPositive ? Icons.add : Icons.remove,
+            color: isPositive ? Colors.green : Colors.red,
+          ),
+        ),
+        title: Text(
+          transaction['description'] ?? 'Transaction',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              transaction['timestamp']?.toDate().toString().split('.')[0] ?? '',
+              style: const TextStyle(color: Colors.grey),
+            ),
+            if (hasPoints)
+              Text(
+                '+${transaction['kPoints']} K-Points',
+                style: const TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+          ],
+        ),
+        trailing: Text(
+          '${isPositive ? '+' : ''}EGP ${transaction['amount'].toStringAsFixed(2)}',
+          style: TextStyle(
+            color: isPositive ? Colors.green : Colors.red,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecurityTips() {
+    return ExpansionTile(
+      title: const Text('Security Tips'),
+      leading: const Icon(Icons.security),
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTipItem('Never share your CVV with anyone'),
+              _buildTipItem('Always check for the secure lock icon in your browser'),
+              _buildTipItem('Use strong passwords and enable 2FA'),
+              _buildTipItem('Monitor your transactions regularly'),
+              _buildTipItem('Report suspicious activity immediately'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTipItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: Colors.green, size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
   }
 
   /// Load payment details from Firestore
@@ -105,36 +357,105 @@ class _PaymentPageState extends State<PaymentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Payment'),
-        backgroundColor: Colors.blueAccent,
+        title: const Text('My Wallet'),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.chat),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ChatBotScreen()),
+              );
+            },
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Credit Card Preview
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  showBack = !showBack;
-                });
-              },
-              child: AnimatedSwitcher(
-                duration: Duration(milliseconds: 500),
-                transitionBuilder: (widget, animation) => RotationTransition(
-                  turns: animation,
-                  child: widget,
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Available Balance',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'EGP ${_balance.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildKPointsCard(),
+                  ],
                 ),
-                child: showBack ? _buildCardBack() : _buildCardFront(),
               ),
             ),
-            SizedBox(height: 20),
-            // Payment Form
+            const SizedBox(height: 24),
+            _buildSecurityTips(),
+            const SizedBox(height: 24),
+            const Text(
+              'Recent Transactions',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_transactions.isEmpty)
+              const Center(
+                child: Text('No transactions yet'),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _transactions.length,
+                itemBuilder: (context, index) =>
+                    _buildTransactionItem(_transactions[index]),
+              ),
+            const SizedBox(height: 24),
+            // Keep existing card input form
             Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        showBack = !showBack;
+                      });
+                    },
+                    child: AnimatedSwitcher(
+                      duration: Duration(milliseconds: 500),
+                      transitionBuilder: (widget, animation) => RotationTransition(
+                        turns: animation,
+                        child: widget,
+                      ),
+                      child: showBack ? _buildCardBack() : _buildCardFront(),
+                    ),
+                  ),
+                  SizedBox(height: 20),
                   _buildInputField(
                     label: 'Card Number',
                     hint: 'Enter card number',

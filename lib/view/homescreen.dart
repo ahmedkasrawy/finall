@@ -19,7 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final CarSearchService _carSearchService = CarSearchService();
   late TextEditingController _searchController;
   double _minPrice = 0;
-  double _maxPrice = 100000;
+  double _maxPrice = 5000;
   final currentUser = FirebaseAuth.instance.currentUser;
 
   List<Map<String, dynamic>> _randomCars = [];
@@ -84,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final trendingCarsWithPrices = cars.map((car) {
         return {
           ...car,
-          'price': random.nextInt(9501) + 500,
+          'price': random.nextInt(4501) + 500,
         };
       }).toList();
 
@@ -115,13 +115,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (carDoc.exists) {
       await favoritesRef.doc(carId).delete();
-      Fluttertoast.showToast(
-        msg: '${car['make']} ${car['model']} removed from favorites!',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.blue, // Blue background for toast
-        textColor: Colors.white,
-        fontSize: 16.0,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 200),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.favorite_border, color: Colors.red, size: 16),
+                  SizedBox(width: 8),
+                  Text(
+                    '${car['make']} ${car['model']} removed from favorites',
+                    style: TextStyle(color: Colors.black87, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          backgroundColor: Colors.white,
+          duration: Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
       );
     } else {
       await favoritesRef.doc(carId).set({
@@ -132,13 +150,31 @@ class _HomeScreenState extends State<HomeScreen> {
         'price': car['price'] ?? 0,
         'image': car['image'] ?? 'https://via.placeholder.com/150',
       });
-      Fluttertoast.showToast(
-        msg: '${car['make']} ${car['model']} added to favorites!',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.blue, // Blue background for toast
-        textColor: Colors.white,
-        fontSize: 16.0,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 200),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.favorite, color: Colors.red, size: 16),
+                  SizedBox(width: 8),
+                  Text(
+                    '${car['make']} ${car['model']} added to favorites',
+                    style: TextStyle(color: Colors.black87, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          backgroundColor: Colors.white,
+          duration: Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
       );
     }
 
@@ -149,15 +185,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchCarsFromFirestore() async {
     try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
       final snapshot = await FirebaseFirestore.instance.collection('cars').get();
       final cars = snapshot.docs.map((doc) {
         final data = doc.data();
+        final random = Random();
         return {
           'id': doc.id,
           'make': data['make'] ?? 'Unknown',
           'model': data['model'] ?? 'Unknown',
           'year': data['year'] ?? 'Unknown',
-          'price': data['price'] ?? 'Unknown',
+          'price': data['price'] ?? (random.nextInt(4501) + 500), // Random price between 500 and 5,000 EGP per day
           'image': data['image'] ?? 'https://via.placeholder.com/150',
         };
       }).toList();
@@ -170,6 +212,12 @@ class _HomeScreenState extends State<HomeScreen> {
       print('Error fetching cars from Firestore: $e');
       setState(() {
         _errorMessage = 'Error fetching cars from Firestore. Please try again.';
+        _firestoreCars = [];
+        _filteredCars = _randomCars; // Fallback to API cars if Firestore fails
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
       });
     }
   }
@@ -181,12 +229,23 @@ class _HomeScreenState extends State<HomeScreen> {
         _errorMessage = null;
       });
 
-      final manufacturers = ['Toyota', 'Honda', 'Ford', 'BMW', 'Tesla', 'Dodge'];
+      final manufacturers = ['Toyota', 'Honda', 'Ford', 'BMW', 'Tesla', 'Dodge','Suzuki','Nissan','Mercedes','Audi','Volkswagen','Hyundai','Kia','Volvo','Jeep','Land Rover','Lexus','Mazda','Mercedes-Benz','Mitsubishi','Nissan','Peugeot','Renault','Skoda','Toyota','Volkswagen','Volvo'];
+      final random = Random();
 
       List<Map<String, dynamic>> allCars = [];
       for (String make in manufacturers) {
-        final cars = await _carSearchService.fetchVehiclesByMakeAndModel(make, '');
-        allCars.addAll(cars);
+        try {
+          final cars = await _carSearchService.fetchVehiclesByMakeAndModel(make, '');
+          // Add random prices to the cars
+          final carsWithPrices = cars.map((car) => {
+            ...car,
+            'price': random.nextInt(4501) + 500,
+          }).toList();
+          allCars.addAll(carsWithPrices);
+        } catch (e) {
+          print('Error fetching cars for $make: $e');
+          // Continue with other manufacturers even if one fails
+        }
       }
 
       setState(() {
@@ -194,9 +253,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _filteredCars = _combinedCars;
       });
     } catch (e) {
+      print('Error in _fetchRandomCars: $e');
       setState(() {
-        _errorMessage = 'Error fetching cars from the API: $e';
+        _errorMessage = 'Error fetching cars from the API. Using local data only.';
         _randomCars = [];
+        _filteredCars = _firestoreCars; // Fallback to Firestore cars if API fails
       });
     } finally {
       setState(() {
@@ -212,17 +273,21 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       if (query.isEmpty) {
         _filteredCars = _combinedCars.where((car) {
-          final price = car['price'] ?? 0;
+          final price = car['price'] is String ? double.tryParse(car['price']) ?? 0 : car['price'] ?? 0;
           return price >= _minPrice && price <= _maxPrice;
         }).toList();
       } else {
         _filteredCars = _combinedCars.where((car) {
-          final make = car['make']?.toLowerCase() ?? '';
-          final model = car['model']?.toLowerCase() ?? '';
-          final year = car['year']?.toString() ?? '';
-          final price = car['price'] ?? 0;
-          return (make.contains(query) || model.contains(query) || year.contains(query)) &&
-              price >= _minPrice && price <= _maxPrice;
+          final make = car['make']?.toString().toLowerCase() ?? '';
+          final model = car['model']?.toString().toLowerCase() ?? '';
+          final year = car['year']?.toString().toLowerCase() ?? '';
+          final price = car['price'] is String ? double.tryParse(car['price']) ?? 0 : car['price'] ?? 0;
+
+          return (make.contains(query) ||
+              model.contains(query) ||
+              year.contains(query)) &&
+              price >= _minPrice &&
+              price <= _maxPrice;
         }).toList();
       }
     });
@@ -339,7 +404,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      buildImage(car['image']),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+                                        child: buildImage(car['image']),
+                                      ),
                                       Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: Column(
@@ -349,22 +417,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                             Text(
                                               car['make'] ?? 'Unknown',
                                               style: const TextStyle(
-                                                fontSize: 16,
+                                                fontSize: 14,
                                                 fontWeight: FontWeight.bold,
                                               ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                             Text(
                                               car['model'] ?? 'Unknown',
                                               style: const TextStyle(
-                                                fontSize: 14,
+                                                fontSize: 12,
                                                 color: Colors.grey,
                                               ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                             Text(
-                                              'Price: \$${car['price']}',
+                                              '${car['price']} EGP/day',
                                               style: const TextStyle(
-                                                fontSize: 14,
+                                                fontSize: 12,
                                                 color: Colors.green,
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                           ],
@@ -376,13 +449,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             Positioned(
-                              bottom: 8,
-                              right: 8,
+                              top: 8,
+                              right: 16,
                               child: IconButton(
                                 onPressed: () => _toggleFavorite(car),
                                 icon: Icon(
                                   isFavorite ? Icons.favorite : Icons.favorite_border,
                                   color: isFavorite ? Colors.red : Colors.grey,
+                                  size: 20,
                                 ),
                                 tooltip: isFavorite
                                     ? 'Remove from favorites'
@@ -411,7 +485,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       : TopCarsListView(
                     topCars: _filteredCars,
                     onCarTap: (car) {
-                      _toggleFavorite(car);
                       Navigator.push(
                         context,
                         MaterialPageRoute(

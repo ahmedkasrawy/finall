@@ -1,87 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class CarBookingScreen extends StatefulWidget {
-  final Function(DateTime pickUpDate, DateTime dropOffDate)? onDatesConfirmed;
+  final Function(DateTime, DateTime)? onDatesConfirmed;
+  final DateTime? initialPickUpDate;
+  final DateTime? initialDropOffDate;
 
-  CarBookingScreen({this.onDatesConfirmed});
+  const CarBookingScreen({
+    Key? key,
+    this.onDatesConfirmed,
+    this.initialPickUpDate,
+    this.initialDropOffDate,
+  }) : super(key: key);
 
   @override
-  _CarBookingScreenState createState() => _CarBookingScreenState();
+  State<CarBookingScreen> createState() => _CarBookingScreenState();
 }
 
 class _CarBookingScreenState extends State<CarBookingScreen> {
-  DateTime _pickUpDate = DateTime.now();
-  DateTime _dropOffDate = DateTime.now().add(Duration(days: 1));
+  DateTime? _pickUpDate;
+  DateTime? _dropOffDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _pickUpDate = widget.initialPickUpDate;
+    _dropOffDate = widget.initialDropOffDate;
+  }
 
   Future<void> _selectDate(BuildContext context, bool isPickUp) async {
-    final DateTime? pickedDate = await showDatePicker(
+    final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isPickUp ? _pickUpDate : _dropOffDate,
+      initialDate: isPickUp ? _pickUpDate ?? DateTime.now() : _dropOffDate ?? DateTime.now(),
       firstDate: DateTime.now(),
-      lastDate: DateTime(2101),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
     );
 
-    if (pickedDate != null) {
+    if (picked != null) {
       setState(() {
         if (isPickUp) {
-          _pickUpDate = pickedDate;
-
-          // Ensure drop-off date is after pick-up date
-          if (_dropOffDate.isBefore(_pickUpDate)) {
-            _dropOffDate = _pickUpDate.add(Duration(days: 1));
+          _pickUpDate = picked;
+          if (_dropOffDate != null && _dropOffDate!.isBefore(_pickUpDate!)) {
+            _dropOffDate = _pickUpDate;
           }
         } else {
-          _dropOffDate = pickedDate;
+          _dropOffDate = picked;
         }
       });
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Select Your Dates",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 20),
-        _buildDateTile(
-          context,
-          label: "Pick-up Date",
-          date: _pickUpDate,
-          icon: Icons.calendar_today,
-          onTap: () => _selectDate(context, true),
-        ),
-        Divider(),
-        _buildDateTile(
-          context,
-          label: "Drop-off Date",
-          date: _dropOffDate,
-          icon: Icons.calendar_today_outlined,
-          onTap: () => _selectDate(context, false),
-        ),
-        SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: () {
-            _confirmBooking();
-          },
-          style: ElevatedButton.styleFrom(
-            minimumSize: Size(double.infinity, 50),
-            backgroundColor: Colors.blueAccent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8.0),
-            ),
-          ),
-          child: Text(
-            "Confirm Date",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildDateTile(BuildContext context,
@@ -105,38 +72,72 @@ class _CarBookingScreenState extends State<CarBookingScreen> {
   }
 
   void _confirmBooking() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Confirm Date'),
-        content: Text(
-          'Pick-up: ${DateFormat('dd/MM/yyyy').format(_pickUpDate)}\n'
-              'Drop-off: ${DateFormat('dd/MM/yyyy').format(_dropOffDate)}',
+    if (_pickUpDate == null || _dropOffDate == null) {
+      Fluttertoast.showToast(
+        msg: "Please select both pick-up and drop-off dates.",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+      return;
+    }
+
+    if (widget.onDatesConfirmed != null) {
+      widget.onDatesConfirmed!(_pickUpDate!, _dropOffDate!);
+      Fluttertoast.showToast(
+        msg: "Date confirmed!",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          child: Column(
+            children: [
+              _buildDateTile(
+                context,
+                label: 'Pick-up Date',
+                date: _pickUpDate ?? DateTime.now(),
+                icon: Icons.calendar_today,
+                onTap: () => _selectDate(context, true),
+              ),
+              _buildDateTile(
+                context,
+                label: 'Drop-off Date',
+                date: _dropOffDate ?? DateTime.now(),
+                icon: Icons.calendar_today,
+                onTap: () => _selectDate(context, false),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close the dialog
-            },
-            child: Text('Cancel'),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: _confirmBooking,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueAccent,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close the dialog
-              if (widget.onDatesConfirmed != null) {
-                widget.onDatesConfirmed!(_pickUpDate, _dropOffDate); // Notify parent
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Date confirmed!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: Text('Confirm'),
+          child: const Text(
+            'Confirm Dates',
+            style: TextStyle(fontSize: 18, color: Colors.white),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

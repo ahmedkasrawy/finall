@@ -144,7 +144,7 @@ class _MyTransactionsState extends State<MyTransactions> {
             icon: Icon(Icons.home),
             label: 'Home',
           ),
-          
+
           BottomNavigationBarItem(
             icon: Icon(Icons.favorite_border),
             label: 'Favorites',

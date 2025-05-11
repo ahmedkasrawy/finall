@@ -4,6 +4,7 @@ import 'homescreen.dart';
 import 'FavoritesScreen.dart';
 import 'UserSelectionScreen.dart';
 import 'bottom.dart';
+import '../widgets/floating_chat_button.dart';
 
 class MainLayout extends StatelessWidget {
   final Widget child;
@@ -48,7 +49,12 @@ class MainLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
-      body: child,
+      body: Stack(
+        children: [
+          child,
+          const FloatingChatButton(),
+        ],
+      ),
       bottomNavigationBar: BottomNavigation(
         selectedIndex: selectedIndex,
         onItemTapped: (index) => _onItemTapped(context, index),

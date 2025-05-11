@@ -5,7 +5,10 @@ import 'package:finall/view/mybookingscreen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 import '../settings.dart';
 import '../wallet.dart';
@@ -17,27 +20,107 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String? username;
+  String? profileImageUrl;
+  File? _selectedImage;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchUsername();
+    _fetchUserDetails();
   }
 
-  Future<void> _fetchUsername() async {
+  Future<void> _fetchUserDetails() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
         final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
         setState(() {
           username = userDoc.data()?['username'] ?? 'No Name';
+          profileImageUrl = userDoc.data()?['profileImageUrl'];
         });
       } catch (e) {
-        print('Error fetching username: $e');
+        print('Error fetching user details: $e');
         setState(() {
           username = 'No Name';
         });
       }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+      });
+      await _uploadProfileImage();
+    }
+  }
+
+  Future<void> _uploadProfileImage() async {
+    if (_selectedImage == null) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final storageRef = FirebaseStorage.instance.ref().child('profile_images/${user.uid}.jpg');
+      final uploadTask = await storageRef.putFile(_selectedImage!);
+      final imageUrl = await uploadTask.ref.getDownloadURL();
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'profileImageUrl': imageUrl,
+      });
+
+      setState(() {
+        profileImageUrl = imageUrl;
+      });
+
+      Fluttertoast.showToast(
+        msg: 'Profile image updated successfully',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+      );
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: 'Error updating profile image: $e',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: 'Error logging out: $e',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
     }
   }
 
@@ -62,18 +145,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => LoginScreen()),
       );
-
-      Fluttertoast.showToast(
-        msg: 'Account deleted successfully.',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.blue,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
     } catch (e) {
       Fluttertoast.showToast(
-        msg: 'Error deleting account: ${e.toString()}',
+        msg: 'Error deleting account: $e',
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
         backgroundColor: Colors.red,
@@ -83,155 +157,133 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Logout'),
-          content: Text('Are you sure you want to log out?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Cancel',style: TextStyle(color: Colors.black)),
-            ),
-            TextButton(
-              onPressed: () {
-                FirebaseAuth.instance.signOut();
-                Navigator.of(context).pop();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                );
-              },
-              child: Text("Yes, I'm sure",style: TextStyle(color: Colors.black),),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
     return MainLayout(
       selectedIndex: 3,
-      child: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 50.0,
-                backgroundImage: NetworkImage(
-                  user?.photoURL ??
-                      'https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg',
-                ),
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: _pickImage,
+              child: CircleAvatar(
+                radius: 50,
+                backgroundImage: profileImageUrl != null
+                    ? NetworkImage(profileImageUrl!)
+                    : null,
+                child: profileImageUrl == null
+                    ? const Icon(Icons.person, size: 50)
+                    : null,
               ),
-              SizedBox(height: 24.0),
-              Text(
-                username ?? "Loading...",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              username ?? 'No Name',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
-              Text(
-                user?.email ?? "No Email",
-                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-              ),
-              SizedBox(height: 24.0),
-              _buildProfileOption(
-                context,
-                label: 'Wallet',
-                icon: Icons.wallet,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => PaymentPage()),
-                  );
-                },
-              ),
-              _buildProfileOption(
-                context,
-                label: 'My Cars',
-                icon: Icons.directions_car,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => MyCarsScreen()),
-                  );
-                },
-              ),
-              _buildProfileOption(
-                context,
-                label: 'My Bookings',
-                icon: Icons.book_online,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => MyBookingsScreen()),
-                  );
-                },
-              ),
-              _buildProfileOption(
-                context,
-                label: 'Settings',
-                icon: Icons.settings,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => SettingsScreen()),
-                  );
-                },
-              ),
-              SizedBox(height: 16.0),
-              ElevatedButton(
-                onPressed: () => _showLogoutDialog(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  minimumSize: Size(200, 50),
-                ),
-                child: Text(
-                  'Logout',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-              SizedBox(height: 16.0),
-              ElevatedButton(
-                onPressed: () => _deleteAccount(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  minimumSize: Size(200, 50),
-                ),
-                child: Text(
-                  'Delete Account',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 32),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SettingsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.payment),
+              title: const Text('Wallet'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PaymentPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.directions_car),
+              title: const Text('My Cars'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => MyCarsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.book),
+              title: const Text('My Bookings'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => MyBookingsScreen()),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.orange),
+              title: const Text('Logout', style: TextStyle(color: Colors.orange)),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Logout'),
+                    content: const Text('Are you sure you want to logout?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _logout(context);
+                        },
+                        child: const Text('Logout', style: TextStyle(color: Colors.orange)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Account'),
+                    content: const Text('Are you sure you want to delete your account? This action cannot be undone.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _deleteAccount(context);
+                        },
+                        child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildProfileOption(BuildContext context,
-      {required String label, required IconData icon, required VoidCallback onTap}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: ListTile(
-        leading: Icon(icon, size: 30, color: Colors.blue),
-        title: Text(
-          label,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        trailing: Icon(Icons.arrow_forward_ios, size: 20, color: Colors.grey),
-        tileColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.0),
-        ),
-        onTap: onTap,
       ),
     );
   }
