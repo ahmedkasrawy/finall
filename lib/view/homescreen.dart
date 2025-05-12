@@ -201,6 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'year': data['year'] ?? 'Unknown',
           'price': data['price'] ?? (random.nextInt(4501) + 500), // Random price between 500 and 5,000 EGP per day
           'image': data['image'] ?? 'https://via.placeholder.com/150',
+          'userId': data['userId'], // Add the userId field
         };
       }).toList();
 
@@ -240,6 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final carsWithPrices = cars.map((car) => {
             ...car,
             'price': random.nextInt(4501) + 500,
+            'userId': 'api_${make.toLowerCase()}_${random.nextInt(1000)}', // Add a unique userId for API cars
           }).toList();
           allCars.addAll(carsWithPrices);
         } catch (e) {
@@ -473,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    "Top Cars",
+                    "All Cars",
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                 ),

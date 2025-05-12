@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class CarSearchService {
   final String baseUrl = 'https://mc-api.marketcheck.com/v2/';
-  final String apiKey = 'iZsSUKwuLk6ouzkbGv3Ws4kBSHktIkX4';
+  final String apiKey = 'ttP3eSK1IV91PE5xFYTJtXAXZApvq0gb';
 
   // Fallback car data in case API fails
   final List<Map<String, dynamic>> _fallbackCars = [

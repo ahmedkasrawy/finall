@@ -54,13 +54,13 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
 
     final bookingDetails = {
       'carName': '${widget.car['make']} ${widget.car['model']}',
-      'pickUpDate': _pickUpDate!.toIso8601String(),
-      'dropOffDate': _dropOffDate!.toIso8601String(),
-      'price': pricePerDay, // Save price per day
-      'totalPrice': totalPrice, // Save total price
-      'userID': user.uid,
       'make': widget.car['make'],
       'model': widget.car['model'],
+      'price': widget.car['price'],
+      'pickUpDate': _pickUpDate!.toIso8601String(),
+      'dropOffDate': _dropOffDate!.toIso8601String(),
+      'totalPrice': totalPrice,
+      'userID': user.uid,
     };
 
     try {
@@ -103,7 +103,7 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (widget.car['image'] != null)
+                if (widget.car['image'] != null && widget.car['image'].toString().startsWith('http'))
                   Center(
                     child: Image.network(
                       widget.car['image'],
@@ -116,6 +116,14 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
                           fit: BoxFit.cover,
                         );
                       },
+                    ),
+                  )
+                else
+                  Center(
+                    child: Image.asset(
+                      'assets/kisooo.png',
+                      height: 200,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 const SizedBox(height: 16),
@@ -174,10 +182,37 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: _pickUpDate == null || _dropOffDate == null ? null : _saveBooking,
+                  onPressed: (_pickUpDate == null || _dropOffDate == null)
+                      ? null
+                      : () {
+                          final int days = _dropOffDate!.difference(_pickUpDate!).inDays;
+                          final double pricePerDay = widget.car['price'] ?? 0.0;
+                          final double totalPrice = pricePerDay * (days > 0 ? days : 1);
+
+                          final orderDetails = {
+                            'carId': widget.car['id']?.toString() ?? 'unknown_id',
+                            'carName': (widget.car['name'] ?? '${widget.car['make'] ?? ''} ${widget.car['model'] ?? ''}').toString().trim().isEmpty
+                                ? 'Unknown Car'
+                                : (widget.car['name'] ?? '${widget.car['make'] ?? ''} ${widget.car['model'] ?? ''}'),
+                            'pricePerDay': pricePerDay,
+                            'pickUpDate': _pickUpDate!.toIso8601String(),
+                            'dropOffDate': _dropOffDate!.toIso8601String(),
+                            'confirmationType': 'BOOK_NOW',
+                            'totalPrice': totalPrice,
+                          };
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OrderConfirmation(
+                                orderDetails: orderDetails,
+                              ),
+                            ),
+                          );
+                        },
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50),
-                    backgroundColor: Colors.blueAccent,
+                    backgroundColor: Colors.green,
                   ),
                   child: const Text(
                     'Book Now',
@@ -191,6 +226,7 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
                       : () {
                           final int days = _dropOffDate!.difference(_pickUpDate!).inDays;
                           final double totalPrice = (widget.car['price'] ?? 0.0) * (days > 0 ? days : 1);
+                          
                           Navigator.push(
                             context,
                             MaterialPageRoute(

@@ -20,6 +20,29 @@ class _TopCarsListViewState extends State<TopCarsListView> {
 
   final _random = Random(); // Random number generator for price
 
+  final List<String> randomNames = [
+    'Omar', 'Sara', 'Youssef', 'Mona', 'Khaled', 'Laila', 'Ahmed', 'Nour', 'Hassan', 'Dina',
+    'Karim', 'Salma', 'Tarek', 'Heba', 'Mostafa', 'Aya', 'Mahmoud', 'Farida', 'Ali', 'Jana'
+  ];
+
+  Future<String> _getOwnerName(String? userId) async {
+    if (userId == null || userId.isEmpty) {
+      return 'Unknown User';
+    }
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        final username = userDoc.data()?['username'];
+        if (username != null && username.toString().trim().isNotEmpty) {
+          return username;
+        }
+      }
+      return 'Unknown User';
+    } catch (e) {
+      return 'Unknown User';
+    }
+  }
+
   Future<void> _toggleFavorite(Map<String, dynamic> car, int index) async {
     if (currentUser == null) return;
 
@@ -162,6 +185,19 @@ class _TopCarsListViewState extends State<TopCarsListView> {
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        FutureBuilder<String>(
+                          future: _getOwnerName(car['userId']),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return Text('Owner: ...', style: TextStyle(fontSize: 13, color: Colors.blueGrey));
+                            }
+                            return Text(
+                              'Owner: ${snapshot.data}',
+                              style: TextStyle(fontSize: 13, color: Colors.blueGrey),
+                            );
+                          },
                         ),
                         const SizedBox(height: 8),
                         Text(

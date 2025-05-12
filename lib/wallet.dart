@@ -194,9 +194,77 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
+  Future<void> _requestRefund(Map<String, dynamic> transaction) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Show confirmation dialog
+      final shouldRefund = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Request Refund'),
+          content: const Text('Are you sure you want to request a refund for this transaction?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+              ),
+              child: const Text('Request Refund'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldRefund != true) return;
+
+      // Create refund request
+      await FirebaseFirestore.instance
+          .collection('refund_requests')
+          .add({
+        'userId': user.uid,
+        'transactionId': transaction['id'],
+        'amount': transaction['amount'],
+        'description': transaction['description'],
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'type': transaction['type'],
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Refund request submitted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Refresh transactions
+      _loadWalletData();
+    } catch (e) {
+      print('Error requesting refund: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to request refund: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Widget _buildTransactionItem(Map<String, dynamic> transaction) {
     final isPositive = transaction['amount'] > 0;
     final hasPoints = transaction['kPoints'] != null;
+    final canRequestRefund = !isPositive && 
+        transaction['type'] != 'REFUND' &&
+        transaction['type'] != 'REFUND_REQUEST';
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
@@ -229,12 +297,29 @@ class _PaymentPageState extends State<PaymentPage> {
               ),
           ],
         ),
-        trailing: Text(
-          '${isPositive ? '+' : ''}EGP ${transaction['amount'].toStringAsFixed(2)}',
-          style: TextStyle(
-            color: isPositive ? Colors.green : Colors.red,
-            fontWeight: FontWeight.bold,
-          ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '${isPositive ? '+' : ''}EGP ${transaction['amount'].toStringAsFixed(2)}',
+              style: TextStyle(
+                color: isPositive ? Colors.green : Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (canRequestRefund)
+              TextButton(
+                onPressed: () => _requestRefund(transaction),
+                child: Text(
+                  'Request Refund',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

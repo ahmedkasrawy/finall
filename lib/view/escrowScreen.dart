@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../orderConfirmation.dart';
+import '../utils/pricing_utils.dart';
 
 class EscrowScreen extends StatefulWidget {
   final Map<String, dynamic> car;
@@ -169,119 +170,93 @@ class _EscrowScreenState extends State<EscrowScreen> {
     );
   }
 
-  Future<void> _submitEscrowOrder(BuildContext context) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _selectedBank == null) {
+  Future<void> _submitEscrowOrder() async {
+    if (_selectedBank == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login and select a bank.')),
+        const SnackBar(
+          content: Text('Please select a bank to proceed'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
-    setState(() => _isLoading = true);
-
-    final double pricePerDay = widget.car['price'] ?? 0.0;
-    final int days = widget.dropOffDate.difference(widget.pickUpDate).inDays;
-    final double total = pricePerDay * (days > 0 ? days : 1);
-
-    // Calculate K-Points (10 points per 100 EGP + 50 bonus for using escrow)
-    final int basePoints = (total / 100).floor() * 10;
-    final int escrowBonus = 50;
-    final int totalPoints = basePoints + escrowBonus;
-
-    final order = {
-      'userId': user.uid,
-      'carId': widget.car['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-      'carName': '${widget.car['make']} ${widget.car['model']}',
-      'pickUpDate': widget.pickUpDate.toIso8601String(),
-      'dropOffDate': widget.dropOffDate.toIso8601String(),
-      'pricePerDay': pricePerDay,
-      'total': total,
-      'bank': _selectedBank,
-      'status': 'escrow_pending',
-      'createdAt': DateTime.now().toIso8601String(),
-      'kPointsEarned': totalPoints,
-    };
-
     try {
-      // Start a batch write
-      final batch = FirebaseFirestore.instance.batch();
+      setState(() => _isLoading = true);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-      // Add escrow order
-      final orderRef = FirebaseFirestore.instance.collection('escrow_orders').doc();
-      batch.set(orderRef, order);
-
-      // Update user's K-Points
-      final walletRef = FirebaseFirestore.instance.collection('wallets').doc(user.uid);
-      batch.set(walletRef, {
-        'kPoints': FieldValue.increment(totalPoints),
-      }, SetOptions(merge: true));
-
-      // Add transaction record
-      final transactionRef = walletRef.collection('transactions').doc();
-      batch.set(transactionRef, {
-        'amount': -total,
-        'description': 'Escrow Payment - ${widget.car['make']} ${widget.car['model']}',
-        'timestamp': FieldValue.serverTimestamp(),
-        'kPoints': totalPoints,
-        'type': 'ESCROW_PAYMENT',
-      });
-
-      // Commit the batch
-      await batch.commit();
-
-      if (!mounted) return;
-
-      // Show success message with points earned
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Order placed! You earned $totalPoints K-Points!',
-                  style: TextStyle(color: Colors.black87),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.white,
-          duration: Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-        ),
+      // Calculate fees and total price
+      final feeBreakdown = PricingUtils.calculateFeeBreakdown(
+        basePrice: widget.car['price'],
+        hasEscrow: true,
+        bankFee: 0.02, // Using minimum bank fee
       );
 
-      Navigator.pushReplacement(
+      final totalPrice = feeBreakdown['totalPrice']!;
+
+      // Get user's current K-Points
+      final walletDoc = await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(user.uid)
+          .get();
+
+      final currentKPoints = walletDoc.exists ? (walletDoc.data()?['kPoints'] ?? 0) : 0;
+
+      // Calculate discount from K-Points
+      final discount = PricingUtils.calculateDiscount(currentKPoints);
+      final finalPrice = PricingUtils.calculateFinalPrice(
+        totalPrice: totalPrice,
+        kPoints: currentKPoints,
+      );
+
+      // Calculate K-Points earned
+      final kPointsEarned = PricingUtils.calculateKPoints(
+        totalPrice: totalPrice,
+        hasEscrow: true,
+        hasBnpl: false,
+      );
+
+      // Create order details
+      final orderDetails = {
+        'userId': user.uid,
+        'carId': widget.car['id']?.toString() ?? 'unknown_id',
+        'carName': ((widget.car['name'] ?? '${widget.car['make'] ?? ''} ${widget.car['model'] ?? ''}').toString().trim().isEmpty
+            ? 'Unknown Car'
+            : (widget.car['name'] ?? '${widget.car['make'] ?? ''} ${widget.car['model'] ?? ''}')),
+        'pricePerDay': widget.car['price'],
+        'basePrice': widget.car['price'],
+        'totalPrice': totalPrice,
+        'finalPrice': finalPrice,
+        'feeBreakdown': feeBreakdown,
+        'kPointsEarned': kPointsEarned,
+        'kPointsUsed': currentKPoints,
+        'discountApplied': discount,
+        'confirmationType': 'ESCROW',
+        'bank': _selectedBank,
+        'pickUpDate': widget.pickUpDate.toIso8601String(),
+        'dropOffDate': widget.dropOffDate.toIso8601String(),
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      // Navigate to order confirmation
+      if (!mounted) return;
+      Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => OrderConfirmation(orderDetails: {
-            ...order,
-            'confirmationType': 'ESCROW',
-          }),
+          builder: (context) => OrderConfirmation(
+            orderDetails: orderDetails,
+          ),
         ),
       );
     } catch (e) {
-      print('🔥 Escrow order save error: $e');
+      print('Error submitting escrow order: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error_outline, color: Colors.red),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Failed to place escrow order.',
-                  style: TextStyle(color: Colors.black87),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.white,
-          duration: Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
+          content: Text('Failed to submit escrow order: $e'),
+          backgroundColor: Colors.red,
         ),
       );
     } finally {
@@ -293,160 +268,157 @@ class _EscrowScreenState extends State<EscrowScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalPrice = (widget.car['price'] ?? 0.0) *
-        (widget.dropOffDate.difference(widget.pickUpDate).inDays > 0
-            ? widget.dropOffDate.difference(widget.pickUpDate).inDays
-            : 1);
-    
-    // Calculate potential K-Points
-    final basePoints = (totalPrice / 100).floor() * 10;
-    final escrowBonus = 50;
-    final totalPoints = basePoints + escrowBonus;
+    final feeBreakdown = PricingUtils.calculateFeeBreakdown(
+      basePrice: widget.car['price'],
+      hasEscrow: true,
+      bankFee: 0.02,
+    );
+
+    final totalPrice = feeBreakdown['totalPrice']!;
+
+    // Calculate K-Points earned
+    final kPointsEarned = PricingUtils.calculateKPoints(
+      totalPrice: totalPrice,
+      hasEscrow: true,
+      hasBnpl: false,
+    );
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
-        title: const Text('Secure Payment (Escrow)'),
-        elevation: 0,
+        title: const Text('Escrow Service'),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTrustInfo(),
-                  const SizedBox(height: 24),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.directions_car,
-                                  color: Theme.of(context).colorScheme.primary),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Rental Details',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                            ],
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (widget.car['name'] ?? '${widget.car['make'] ?? ''} ${widget.car['model'] ?? ''}').toString().trim().isEmpty
+                              ? 'Unknown Car'
+                              : (widget.car['name'] ?? '${widget.car['make'] ?? ''} ${widget.car['model'] ?? ''}'),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '${widget.car['make']} ${widget.car['model']}',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          _buildDetailRow(
-                            'calendar_today',
-                            'From',
-                            widget.pickUpDate.toLocal().toString().split(' ')[0],
-                          ),
-                          _buildDetailRow(
-                            'event',
-                            'To',
-                            widget.dropOffDate.toLocal().toString().split(' ')[0],
-                          ),
-                          const Divider(height: 24),
-                          _buildDetailRow(
-                            'payments',
-                            'Total',
-                            'EGP ${totalPrice.toStringAsFixed(2)}',
-                            isTotal: true,
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDetailRow('Base Price', 'EGP ${widget.car['price'].toStringAsFixed(2)}'),
+                        _buildDetailRow('Platform Commission', 'EGP ${feeBreakdown['platformCommission']!.toStringAsFixed(2)}'),
+                        _buildDetailRow('Escrow Fee', 'EGP ${feeBreakdown['escrowFee']!.toStringAsFixed(2)}'),
+                        _buildDetailRow('Bank Fee', 'EGP ${feeBreakdown['bankFee']!.toStringAsFixed(2)}'),
+                        const Divider(height: 24),
+                        _buildDetailRow('Total Price', 'EGP ${totalPrice.toStringAsFixed(2)}'),
+                        _buildDetailRow('K-Points Earned', '+$kPointsEarned points'),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.green.withOpacity(0.3),
-                      ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Select Bank',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ..._banks.map((bank) => _buildBankCard(bank)).toList(),
+                const SizedBox(height: 24),
+                const Text(
+                  'How Escrow Works',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildEscrowStep(
+                  '1. Payment',
+                  'You pay the full amount which is held securely in escrow.',
+                  Icons.payment,
+                ),
+                _buildEscrowStep(
+                  '2. Verification',
+                  'We verify the car and ensure all documents are in order.',
+                  Icons.verified_user,
+                ),
+                _buildEscrowStep(
+                  '3. Delivery',
+                  'Once verified, the car is delivered to you.',
+                  Icons.local_shipping,
+                ),
+                _buildEscrowStep(
+                  '4. Release',
+                  'Payment is released to the seller only after you confirm receipt.',
+                  Icons.check_circle,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _submitEscrowOrder,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Colors.blue,
                     ),
-                    child: Row(
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Proceed with Escrow'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: Card(
+                  margin: EdgeInsets.all(32),
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.stars, color: Colors.amber, size: 32),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Earn $totalPoints K-Points',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green,
-                                ),
-                              ),
-                              Text(
-                                'Including $escrowBonus bonus points for using escrow!',
-                                style: TextStyle(
-                                  color: Colors.green.shade700,
-                                ),
-                              ),
-                            ],
-                          ),
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          'Processing Escrow Order...',
+                          style: TextStyle(fontSize: 16),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Select Bank',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  ..._banks.map((bank) => _buildBankCard(bank)),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _selectedBank == null ? null : () => _submitEscrowOrder(context),
-                      icon: const Icon(Icons.lock_outline),
-                      label: const Text('Place Escrow Order'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
+        ],
+      ),
     );
   }
 
-  Widget _buildDetailRow(String icon, String label, String value, {bool isTotal = false}) {
+  Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(
-            IconData(
-              icon.codeUnitAt(0),
-              fontFamily: 'MaterialIcons',
-            ),
-            size: 20,
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-          ),
-          const SizedBox(width: 8),
           Text(
             label,
             style: TextStyle(
@@ -457,8 +429,40 @@ class _EscrowScreenState extends State<EscrowScreen> {
           Text(
             value,
             style: TextStyle(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              fontSize: isTotal ? 18 : 16,
+              fontWeight: FontWeight.normal,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEscrowStep(String title, String description, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

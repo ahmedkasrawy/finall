@@ -1,8 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:math';
 
 class MyCarsScreen extends StatelessWidget {
+  final List<String> randomNames = [
+    'Omar', 'Sara', 'Youssef', 'Mona', 'Khaled', 'Laila', 'Ahmed', 'Nour', 'Hassan', 'Dina',
+    'Karim', 'Salma', 'Tarek', 'Heba', 'Mostafa', 'Aya', 'Mahmoud', 'Farida', 'Ali', 'Jana'
+  ];
+
+  Future<String> _getOwnerName(String? userId) async {
+    if (userId == null || userId.isEmpty) {
+      return 'Unknown User';
+    }
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        final username = userDoc.data()?['username'];
+        if (username != null && username.toString().trim().isNotEmpty) {
+          return username;
+        }
+      }
+      return 'Unknown User';
+    } catch (e) {
+      return 'Unknown User';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -91,6 +115,19 @@ class MyCarsScreen extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black,
                               ),
+                            ),
+                            SizedBox(height: 4),
+                            FutureBuilder<String>(
+                              future: _getOwnerName(carData['userId']),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return Text('Owner: ...', style: TextStyle(fontSize: 13, color: Colors.blueGrey));
+                                }
+                                return Text(
+                                  'Owner: ${snapshot.data}',
+                                  style: TextStyle(fontSize: 13, color: Colors.blueGrey),
+                                );
+                              },
                             ),
                             SizedBox(height: 8),
                             Text(
