@@ -1,4 +1,3 @@
-Kosom Omar
 # finall
 
 A new Flutter project.
